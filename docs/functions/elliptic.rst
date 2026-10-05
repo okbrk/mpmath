@@ -13,8 +13,6 @@ Elliptic arguments
 .. autofunction:: mpmath.mfrom
 .. autofunction:: mpmath.kfrom
 .. autofunction:: mpmath.taufrom
-.. autofunction:: mpmath.g2g3from
-.. autofunction:: mpmath.omega1omega2from
 
 
 Legendre elliptic integrals
@@ -48,19 +46,8 @@ Jacobi elliptic functions
 .. autofunction:: mpmath.ellipfun
 
 
-Weierstrass elliptic functions
-..............................
-
-.. autofunction:: mpmath.weierp
-.. autofunction:: mpmath.weierpprime
-.. autofunction:: mpmath.weiersigma
-.. autofunction:: mpmath.weierzeta
-.. autofunction:: mpmath.weierpinv
-
-
 Modular functions
 .................
 
 .. autofunction:: mpmath.eta
 .. autofunction:: mpmath.kleinj
-.. autofunction:: mpmath.kleinjinv

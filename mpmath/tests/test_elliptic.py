@@ -4,10 +4,12 @@ extensive testing can be found in elliptic_torture_tests.py
 
 Author of the first version: M.T. Taschuk
 
-**References**
+References:
 
-1. [AbramowitzStegun]_
-2. [WhittakerWatson]_
+[1] Abramowitz & Stegun. 'Handbook of Mathematical Functions, 9th Ed.',
+    (Dover duplicate of 1972 edition)
+[2] Whittaker 'A Course of Modern Analysis, 4th Ed.', 1946,
+    Cambridge University Press
 
 """
 
@@ -17,12 +19,8 @@ import pytest
 
 from mpmath import (cos, cosh, cot, coth, csc, csch, diff, ellipe, ellipfun,
                     ellipk, ellippi, elliprc, elliprd, elliprf, elliprg,
-                    elliprj, eps, exp, g2g3from, gamma, inf, isnan, j,
-                    jtheta, kleinj, kleinjinv, kfrom, ldexp, ln2, mp, mpc,
-                    mpf, mfrom, nan, nsum, omega1omega2from, pi, polyroots,
-                    qbarfrom, qfrom, sec, sech, sin, sinh, sqrt, tan, tanh,
-                    taufrom, weierp, weierpinv, weierpprime,
-                    weiersigma, weierzeta)
+                    elliprj, eps, exp, isnan, j, jtheta, ldexp, ln2, mp, mpc,
+                    mpf, nan, pi, qfrom, sec, sech, sin, sinh, sqrt, tan, tanh)
 
 
 def mpc_ae(a, b, eps=eps):
@@ -89,7 +87,7 @@ def test_calculate_nome():
     mp.dps = 100
 
     q = calculate_nome(zero)
-    assert q == zero
+    assert(q == zero)
 
     mp.dps = 25
     # used Mathematica's EllipticNomeQ[m]
@@ -117,7 +115,7 @@ def test_jtheta():
     z = q = zero
     for n in range(1,5):
         value = jtheta(n, z, q)
-        assert value == (n-1)//2
+        assert(value == (n-1)//2)
 
     for q in [one, mpf(2)]:
         for n in range(1,5):
@@ -129,22 +127,22 @@ def test_jtheta():
     # Mathematical N[EllipticTheta[1, 1/10, 1/11], 25]
     res = mpf('0.1069552990104042681962096')
     result = jtheta(1, z, q)
-    assert result.ae(res)
+    assert(result.ae(res))
 
     # Mathematica N[EllipticTheta[2, 1/10, 1/11], 25]
     res = mpf('1.101385760258855791140606')
     result = jtheta(2, z, q)
-    assert result.ae(res)
+    assert(result.ae(res))
 
     # Mathematica N[EllipticTheta[3, 1/10, 1/11], 25]
     res = mpf('1.178319743354331061795905')
     result = jtheta(3, z, q)
-    assert result.ae(res)
+    assert(result.ae(res))
 
     # Mathematica N[EllipticTheta[4, 1/10, 1/11], 25]
     res = mpf('0.8219318954665153577314573')
     result = jtheta(4, z, q)
-    assert result.ae(res)
+    assert(result.ae(res))
 
     # test for sin zeros for jtheta(1, z, q)
     # test for cos zeros for jtheta(2, z, q)
@@ -154,9 +152,9 @@ def test_jtheta():
         qstring = str(random.random())
         q = mpf(qstring)
         result = jtheta(1, z1, q)
-        assert result.ae(0), q
+        assert(result.ae(0))
         result = jtheta(2, z2, q)
-        assert result.ae(0), q
+        assert(result.ae(0))
 
 def test_jtheta_issue_79():
     # near the circle of covergence |q| = 1 the convergence slows
@@ -172,19 +170,11 @@ def test_jtheta_issue_79():
     res = mpf('32.0031009628901652627099524264') + \
           mpf('16.6153027998236087899308935624') * j
     result = jtheta(3, 1, q)
+    # check that for abs(q) > Q_LIM a ValueError exception is raised
     mp.dps += 30
     q = mpf(6)/10 - one/10**7 - mpf(8)/10 * j
     mp.dps -= 30
-    # N[EllipticTheta[3, 1, 6/10 - 10^-7 - 8/10 I], 30]
-    # with $MaxExtraPrecision = 10000
-    assert mpc_ae(jtheta(3, 1, q),
-                  mpc('1.19143507322246897676014934229'
-                      '+1.07603569085504321033898492583j'),
-                  100*eps)
-
-    # check that for abs(q) >= 1 a ValueError exception is raised
-    pytest.raises(ValueError, lambda: jtheta(3, 1, 1))
-    pytest.raises(ValueError, lambda: jtheta(3, 1, 2))
+    pytest.raises(ValueError, lambda: jtheta(3, 1, q))
 
     # bug reported in issue 79
     mp.dps = 100
@@ -195,7 +185,7 @@ def test_jtheta_issue_79():
           mpf('0.5446453005688226915290954851851490') *j
     mp.dps = 30
     result = jtheta(1, z, q)
-    assert result.ae(res)
+    assert(result.ae(res))
     mp.dps = 80
     z = 3 + 4*j
     q = 0.5 + 0.5*j
@@ -225,112 +215,6 @@ def test_jtheta_issue_79():
     r = jtheta(3, 4.5, 0.25, 50)
     assert r.ae('-6148327726309051673317975084654262.4119215720343656')
 
-def test_jtheta_invalid_n():
-    pytest.raises(ValueError, jtheta, 5, 0.5, 0.3)
-    pytest.raises(ValueError, jtheta, 0, 0.5, 0.3)
-    pytest.raises(ValueError, jtheta, 5, 0.5, 0.3)
-    pytest.raises(ValueError, jtheta, 0, 0.5, 0.3)
-
-def test_issue_930():
-    # for |q| close to 1 with complex z, jtheta's direct nome series
-    # suffered catastrophic cancellation and lost all precision.
-    # The PSL(2, Z) modular-reduction path fixes it.
-    #
-    mp.dps = 70
-    q = mpf(99)/100
-    z = 99+1j
-    mp.dps = 50
-    eps1 = 100*eps
-    # Reference values computed with:
-    # N[N[Derivative[0, nd, 0][EllipticTheta][n, 99+I, 99/100], 300], 50].
-    ref = {  # jtheta(n, 99+I, q, derivative=nd)
-        (1, 0): mpc('1.779258740399125063008605585919688748246270941962e43+2.4531552106585761829132327656277889232764080000082e44j'),
-        (2, 0): mpc('-1.4988039420376218477379546959304839688561560327952e-57+1.126724649309213092636325219160375156534138267338e-58j'),
-        (3, 0): mpc('-1.4988039419916629783968527738038480059854883969519e-57+1.126724649277094787663809804454822463406493776515e-58j'),
-        (4, 0): mpc('-1.779258740399125063008605585919688748246270941962e43-2.4531552106585761829132327656277889232764080000082e44j'),
-        (1, 1): mpc('4.8676346890955099082032405931623721782101881475052e46-5.485160172971341958206637770436412266629883709382e45j'),
-        (2, 1): mpc('-4.3420315824972909797400114725699377626910985932552e-55+3.3258620549120325016554512103625432300841517973459e-55j'),
-        (3, 1): mpc('-4.3420315826509862620149131749487142244793486272826e-55+3.3258620548308694307995377047445340481881823181686e-55j'),
-        (4, 1): mpc('-4.8676346890955099082032405931623721782101881475052e46+5.485160172971341958206637770436412266629883709382e45j'),
-        (1, 2): mpc('-1.4809058110492439979937435179858838426773452717825e48-9.6918513863888705669477095057488664706217962565546e48j'),
-        (2, 2): mpc('-6.580173968678905306210609222130658781889044450531e-53+1.8770881118790176343351463096530497188645552821989e-52j'),
-        (3, 2): mpc('-6.5801739683487208669817955792020573096817453981375e-53+1.8770881119356228857428818901066687299013630001154e-53j'),
-        (4, 2): mpc('1.4809058110492439979937435179858838426773452717825e48+9.6918513863888705669477095057488664706217962565546e48j'),
-    }
-    for (n_, nd), r in ref.items():
-        assert mpc_ae(jtheta(n_, z, q, derivative=nd), r, eps1), (n_, nd)
-
-    # larger Im(z): N[EllipticTheta[n, 99+2I, 99/100], 300], 50]
-    ref_z2 = {
-        2: mpc('6.4249758037350518725606864570348600840795103250997e72'
-               '-9.714841891170799887220046736000777198237616535325e71j'),
-        3: mpc('6.4249758039322926903898883193670191561073076453307e72'
-               '-9.714841891447835957536206094692144086296486157276e71j'),
-    }
-    for n_, r in ref_z2.items():
-        assert mpc_ae(jtheta(n_, 99 + 2j, q), r, eps1)
-
-    # small Im(z):
-    mp.dps = 70
-    z1 = 99 + j/100
-    z2 = 99 + j/1000
-    mp.dps = 50
-    # N[EllipticTheta[n, 99+I/100, 99/100], 300], 50]
-    assert mpc_ae(jtheta(2, z1, q),
-                  mpc('-9.2766223348824196728753370062221747173794042129425e-101'
-                      '+8.839222869333177347710982216539973334987056177494e-102j'))
-    # N[EllipticTheta[n, 99+2I, 99/1000], 300], 50]
-    assert mpc_ae(jtheta(2, z2, q),
-                  mpc('8.8023727531603529839604538627814233285505151260344e-101'
-                      '+2.7678970233217267414786149238410133410022311980703e-101j'))
-
-    mp.dps = 15
-    r1 = mp.extradps(45)(jtheta)(3, 0.25+0.25j, 0.5)
-    assert mpc_ae(jtheta(3, 0.25+0.25j, 0.5), +r1)
-
-    z = 1+0.5j
-    # N[EllipticTheta[1, 1 + I/2, 99*Exp[Pi*I/4]/100], 17]
-    with mp.extraprec(10):
-        q = 99*mp.nthroot(1, 8, 1)/100
-    assert mpc_ae(jtheta(1, z, q),
-                  mpc('2.0519200161807602e10-1.2299274570292357e10j'))
-    # N[EllipticTheta[1, 1 + I/2, 99*Exp[3*Pi*I/4]/100], 17]
-    with mp.extraprec(10):
-        q = 99*mp.nthroot(1, 8, 3)/100
-    assert mpc_ae(jtheta(1, z, q),
-                  mpc('1.4250540444836117e10-1.9215405987536610e10j'))
-
-def test_issue_930_random():
-    # random data in the modular-reduction regime (|q| close to 1 and
-    # complex z): check jtheta against itself at two precisions, like
-    # the |q| -> 1 checks in test_jtheta_issue_79 above
-    for i in range(10):
-        q = mpf(str(random.random()*mpf('0.0999') + mpf('0.9')))
-        if i % 2:
-            q = -q   # exercise the tau -> tau - k translation
-        z = mpc(str(10*random.random()), str(4*random.random() - 2))
-        for n_ in range(1, 5):
-            for nd in (0, 1, 2, 5, 8, 10):
-                r1 = mp.extradps(45)(jtheta)(n_, z, q, nd)
-                r2 = jtheta(n_, z, q, nd)
-                assert mpc_ae(r1, r2), (n_, z, q, nd)
-
-def test_jtheta_modular_translation():
-    mp.dps = 25
-    q = -0.5
-    z = 1+2j
-    assert mpc_ae(jtheta(3, z, q), jtheta(4, z, -q))
-    assert mpc_ae(jtheta(4, z, q), jtheta(3, z, -q))
-    for nd in (1, 2):
-        assert mpc_ae(jtheta(3, z, q, derivative=nd),
-                      jtheta(4, z, -q, derivative=nd))
-        assert mpc_ae(jtheta(4, z, q, derivative=nd),
-                      jtheta(3, z, -q, derivative=nd))
-    for n_ in (1, 2):
-        assert jtheta(n_, z, q).ae(exp(j*pi/4)*jtheta(n_, z, -q))
-    assert mpc_ae(jtheta(3, z, q), jtheta(3, -z, q))
-    assert mpc_ae(jtheta(4, z, q), jtheta(4, -z, q))
-
 def test_jtheta_identities():
     """
     Tests the some of the jacobi identidies found in Abramowitz,
@@ -352,7 +236,7 @@ def test_jtheta_identities():
         term2 = (jtheta(3, z, q)**2) * (jtheta(2, zero, q)**2)
         term3 = (jtheta(2, z, q)**2) * (jtheta(3, zero, q)**2)
         equality = term1 - term2 + term3
-        assert equality.ae(0, eps1), (z, q)
+        assert(equality.ae(0, eps1))
 
         zstring = str(100*random.random())
         z = mpf(zstring)
@@ -363,7 +247,7 @@ def test_jtheta_identities():
         term2 = (jtheta(4, z, q)**2) * (jtheta(2, zero, q)**2)
         term3 = (jtheta(1, z, q)**2) * (jtheta(3, zero, q)**2)
         equality = term1 - term2 + term3
-        assert equality.ae(0, eps1), (z, q)
+        assert(equality.ae(0, eps1))
 
         # Abramowitz 16.28.3
         # v_3(z, q)**2 * v_4(0, q)**2 =   v_4(z, q)**2 * v_3(0, q)**2
@@ -372,7 +256,7 @@ def test_jtheta_identities():
         term2 = (jtheta(4, z, q)**2) * (jtheta(3, zero, q)**2)
         term3 = (jtheta(1, z, q)**2) * (jtheta(2, zero, q)**2)
         equality = term1 - term2 + term3
-        assert equality.ae(0, eps1), (z, q)
+        assert(equality.ae(0, eps1))
 
         # Abramowitz 16.28.4
         # v_4(z, q)**2 * v_4(0, q)**2 =   v_3(z, q)**2 * v_3(0, q)**2
@@ -381,7 +265,7 @@ def test_jtheta_identities():
         term2 = (jtheta(3, z, q)**2) * (jtheta(3, zero, q)**2)
         term3 = (jtheta(2, z, q)**2) * (jtheta(2, zero, q)**2)
         equality = term1 - term2 + term3
-        assert equality.ae(0, eps1), (z, q)
+        assert(equality.ae(0, eps1))
 
         # Abramowitz 16.28.5
         # v_2(0, q)**4 + v_4(0, q)**4 == v_3(0, q)**4
@@ -389,7 +273,7 @@ def test_jtheta_identities():
         term2 = (jtheta(4, zero, q))**4
         term3 = (jtheta(3, zero, q))**4
         equality = term1 + term2 - term3
-        assert equality.ae(0, eps1), (z, q)
+        assert(equality.ae(0, eps1))
 
 def test_jtheta_complex():
     mp.dps = 30
@@ -399,25 +283,25 @@ def test_jtheta_complex():
     res = mpf('0.31618034835986160705729105731678285') + \
           mpf('0.07542013825835103435142515194358975') * j
     r = jtheta(1, z, q)
-    assert mpc_ae(r, res)
+    assert(mpc_ae(r, res))
 
     # Mathematica N[EllipticTheta[2, 1/4 + I/8, 1/3 + I/7], 35]
     res = mpf('1.6530986428239765928634711417951828') + \
           mpf('0.2015344864707197230526742145361455') * j
     r = jtheta(2, z, q)
-    assert mpc_ae(r, res)
+    assert(mpc_ae(r, res))
 
     # Mathematica N[EllipticTheta[3, 1/4 + I/8, 1/3 + I/7], 35]
     res = mpf('1.6520564411784228184326012700348340') + \
           mpf('0.1998129119671271328684690067401823') * j
     r = jtheta(3, z, q)
-    assert mpc_ae(r, res)
+    assert(mpc_ae(r, res))
 
     # Mathematica N[EllipticTheta[4, 1/4 + I/8, 1/3 + I/7], 35]
     res = mpf('0.37619082382228348252047624089973824') - \
           mpf('0.15623022130983652972686227200681074') * j
     r = jtheta(4, z, q)
-    assert mpc_ae(r, res)
+    assert(mpc_ae(r, res))
 
     # check some theta function identities
     mp.dos = 100
@@ -433,7 +317,7 @@ def test_jtheta_complex():
         a[2]**4 + a[4]**4 - a[3]**4]
     mp.dps -= 10
     for x in r:
-        assert mpc_ae(x, mpc(0))
+        assert(mpc_ae(x, mpc(0)))
 
 def test_djtheta():
     mp.dps = 30
@@ -444,32 +328,32 @@ def test_djtheta():
     res = mpf('1.5555195883277196036090928995803201') - \
           mpf('0.02439761276895463494054149673076275') * j
     result = jtheta(1, z, q, 1)
-    assert mpc_ae(result, res)
+    assert(mpc_ae(result, res))
 
     # Mathematica N[EllipticThetaPrime[2, 1/7 + I/3, 1/8 + I/5], 35]
     res = mpf('0.19825296689470982332701283509685662') - \
           mpf('0.46038135182282106983251742935250009') * j
     result = jtheta(2, z, q, 1)
-    assert mpc_ae(result, res)
+    assert(mpc_ae(result, res))
 
     # Mathematica N[EllipticThetaPrime[3, 1/7 + I/3, 1/8 + I/5], 35]
     res = mpf('0.36492498415476212680896699407390026') - \
           mpf('0.57743812698666990209897034525640369') * j
     result = jtheta(3, z, q, 1)
-    assert mpc_ae(result, res)
+    assert(mpc_ae(result, res))
 
     # Mathematica N[EllipticThetaPrime[4, 1/7 + I/3, 1/8 + I/5], 35]
     res = mpf('-0.38936892528126996010818803742007352') + \
           mpf('0.66549886179739128256269617407313625') * j
     result = jtheta(4, z, q, 1)
-    assert mpc_ae(result, res)
+    assert(mpc_ae(result, res))
 
     for i in range(10):
         q = (one*random.random() + j*random.random())/2
         # identity in Wittaker, Watson &21.41
         a = jtheta(1, 0, q, 1)
         b = jtheta(2, 0, q)*jtheta(3, 0, q)*jtheta(4, 0, q)
-        assert a.ae(b), q
+        assert(a.ae(b))
 
     # test higher derivatives
     mp.dps = 20
@@ -491,7 +375,7 @@ def test_djtheta():
     for n in [2,3,4]:
         a[n] = jtheta(n, z, q, 2)/jtheta(n, z, q)
     equality = a[2] + a[3] + a[4] - a[1]
-    assert equality.ae(0)
+    assert(equality.ae(0))
 
 def test_jsn():
     """
@@ -501,7 +385,7 @@ def test_jsn():
 
     # trival case
     result = jsn(zero, zero)
-    assert result == zero
+    assert(result == zero)
 
     # Abramowitz Table 16.5
     #
@@ -512,7 +396,7 @@ def test_jsn():
         q = mpf(qstring)
 
         equality = jsn(zero, q)
-        assert equality.ae(0), q
+        assert(equality.ae(0))
 
     # Abramowitz Table 16.6.1
     #
@@ -526,16 +410,16 @@ def test_jsn():
 
     mp.dps = 25
     arg = one/10
-    # N[JacobiSN[1/10, 2^-100], 25]
+    #N[JacobiSN[1/10, 2^-100], 25]
     res = mpf('0.09983341664682815230681420')
     m = ldexp(one, -100)
     result = jsn(arg, m)
-    assert result.ae(res)
+    assert(result.ae(res))
 
     # N[JacobiSN[1/10, 1/10], 25]
     res = mpf('0.09981686718599080096451168')
     result = jsn(arg, arg)
-    assert result.ae(res)
+    assert(result.ae(res))
 
 def test_jcn():
     """
@@ -548,7 +432,7 @@ def test_jcn():
     qstring = str(random.random())
     q = mpf(qstring)
     cn = jcn(zero, q)
-    assert cn.ae(one), q
+    assert(cn.ae(one))
 
     # Abramowitz Table 16.6.2
     #
@@ -563,15 +447,15 @@ def test_jcn():
     mp.dps = 25
     arg = one/10
     m = ldexp(one, -100)
-    # N[JacobiCN[1/10, 2^-100], 25]
+    #N[JacobiCN[1/10, 2^-100], 25]
     res = mpf('0.9950041652780257660955620')
     result = jcn(arg, m)
-    assert result.ae(res)
+    assert(result.ae(res))
 
     # N[JacobiCN[1/10, 1/10], 25]
     res = mpf('0.9950058256237368748520459')
     result = jcn(arg, arg)
-    assert result.ae(res)
+    assert(result.ae(res))
 
 def test_jdn():
     """
@@ -585,14 +469,14 @@ def test_jdn():
     m = mpf(mstring)
 
     dn = jdn(zero, m)
-    assert dn.ae(one), m
+    assert(dn.ae(one))
 
     mp.dps = 25
     # N[JacobiDN[1/10, 1/10], 25]
     res = mpf('0.9995017055025556219713297')
     arg = one/10
     result = jdn(arg, arg)
-    assert result.ae(res)
+    assert(result.ae(res))
 
 def test_sn_cn_dn_identities():
     """
@@ -612,7 +496,7 @@ def test_sn_cn_dn_identities():
         term1 = jsn(z, q)**2
         term2 = jcn(z, q)**2
         equality = one - term1 - term2
-        assert equality.ae(0), (z, q)
+        assert(equality.ae(0))
 
     # MathWorld
     # k**2 * sn(z, m)**2 + dn(z, m)**2 == 1
@@ -625,13 +509,13 @@ def test_sn_cn_dn_identities():
         term1 = k**2 * jsn(z, m)**2
         term2 = jdn(z, m)**2
         equality = one - term1 - term2
-        assert equality.ae(0), (z, m)
+        assert(equality.ae(0))
 
 
     for i in range(N):
         mstring = str(random.random())
         m = mpf(mstring)
-        k = mp.extraprec(10)(sqrt)(m)
+        k = m.sqrt()
         zstring = str(random.random())
         z = mpf(zstring)
 
@@ -641,24 +525,24 @@ def test_sn_cn_dn_identities():
         term2 = 1 - k**2
         term3 = jdn(z, m)**2
         equality = term3 - term1 - term2
-        assert equality.ae(0), (z, m)
+        assert(equality.ae(0))
 
         K = ellipk(k**2)
         # Abramowitz Table 16.5
         # sn(K, m) = 1; K is K(k), first complete elliptic integral
         r = jsn(K, m)
-        assert r.ae(one), (K, m)
+        assert(r.ae(one))
 
         # Abramowitz Table 16.5
         # cn(K, q) = 0; K is K(k), first complete elliptic integral
         equality = jcn(K, m)
-        assert equality.ae(0), (K, m)
+        assert(equality.ae(0))
 
         # Abramowitz Table 16.6.3
         # dn(z, 0) = 1, m == 0
         z = m
         value = jdn(z, zero)
-        assert value.ae(one), z
+        assert(value.ae(one))
 
 def test_sn_cn_dn_complex():
     mp.dps = 30
@@ -668,19 +552,21 @@ def test_sn_cn_dn_complex():
     u = mpf(1)/4 + j/8
     m = mpf(1)/3 + j/7
     r = jsn(u, m)
-    assert mpc_ae(r, res)
+    assert(mpc_ae(r, res))
 
-    # N[JacobiCN[1/4 + I/8, 1/3 + I/7], 35]
+    #N[JacobiCN[1/4 + I/8, 1/3 + I/7], 35]
     res = mpf('0.9762691700944007312693721148331') - \
           mpf('0.0307203994181623243583169154824')*j
     r = jcn(u, m)
-    assert mpc_ae(r, res)
+    #assert r.real.ae(res.real)
+    #assert r.imag.ae(res.imag)
+    assert(mpc_ae(r, res))
 
-    # N[JacobiDN[1/4 + I/8, 1/3 + I/7], 35]
+    #N[JacobiDN[1/4 + I/8, 1/3 + I/7], 35]
     res = mpf('0.99639490163039577560547478589753039') - \
           mpf('0.01346296520008176393432491077244994')*j
     r = jdn(u, m)
-    assert mpc_ae(r, res)
+    assert(mpc_ae(r, res))
 
 def test_elliptic_integrals():
     # Test cases from Carlson's paper
@@ -761,7 +647,7 @@ def test_elliptic_integrals():
     # these require accurate integration
     assert elliprj(0.3068, -4.037-0.0632j, 1.654, -0.9609).ae(1.77940452391261626 + 0.0388711305592447234j)
     assert elliprj(0.3068, -4.037-0.00632j, 1.654, -0.9609).ae(1.77806722756403055 + 0.0592749824572262329j)
-    # issue 571
+    # issue #571
     assert ellippi(2.1 + 0.94j, 2.3 + 0.98j, 2.5 + 0.01j).ae(-0.40652414240811963438 + 2.1547659461404749309j)
 
     assert ellippi(2.0-1.0j, 2.0+1.0j).ae(1.8578723151271115 - 1.18642180609983531j)
@@ -773,713 +659,5 @@ def test_elliptic_integrals():
 def test_issue_238():
     assert isnan(qfrom(m=nan))
 
-def test_argument_conversions_from_weierstrass_data():
-    mp.dps = 30
-
-    half_periods = [
-        (1, j/2),
-        (1, mpf(1)/2 + 3*j/4),
-        (mpf(3)/4 + j/4, -mpf(1)/5 + 9*j/10),
-    ]
-
-    for omega1, omega2 in half_periods:
-        tau = omega2 / omega1
-        g2, g3 = g2g3from(omega1=omega1, omega2=omega2)
-        tau_from_invariants = taufrom(g2=g2, g3=g3)
-
-        for func in [qfrom, qbarfrom, kfrom, mfrom]:
-            assert mpc_ae(func(omega1=omega1, omega2=omega2),
-                          func(tau=tau), eps=eps*1000)
-            assert mpc_ae(func(g2=g2, g3=g3),
-                          func(tau=tau_from_invariants), eps=eps*1000)
-
-    g2, g3 = g2g3from(omega1=1, omega2=j/2)
-    for func in [qfrom, qbarfrom, kfrom, mfrom]:
-        pytest.raises(ValueError, lambda func=func: func(g2=g2))
-        pytest.raises(ValueError, lambda func=func: func(omega1=1))
-
 def test_issue_604():
     assert ellipe(pi, 1).ae('2.0')
-
-def test_issue_486():
-    assert isnan(elliprj(1, 2, 3, nan))
-
-def test_issue_1104():
-    z, q = mpc(2479 + 1020j), mpf('1e-2141')
-
-    # N[Im[EllipticTheta[4, 2479 + 1020 I, 10^-2141]], 15]
-    ref_im = mpf('4.90523636450946e-1256')
-    ans = jtheta(4, z, q)
-    assert mpc_ae(ans, 1 + ref_im*1j)
-    assert mpc_ae(ans, mp.extraprec(10000)(jtheta)(4, z, q))
-
-    # N[Derivative[0, 3, 0][EllipticTheta][4, 2479 + 1020 I, 10^-2141], 15]
-    ref = mpc('-3.92418909160757e-1255-6.16571954074132e-1255j')
-    ans = jtheta(4, z, q, 3)
-    assert mpc_ae(ans, ref)
-    assert mpc_ae(ans, mp.extraprec(10000)(jtheta)(4, z, q, 3))
-
-# Weierstrass Elliptic Functions
-# ============================================================================
-
-def test_weierstrass_tau_uses_normalized_periods():
-    mp.dps = 30
-
-    z = mpf('0.3')
-    tau = j/2
-    omega1 = 0.5
-    omega2 = tau/2
-
-    for f in [weierp, weierpprime, weiersigma, weierzeta]:
-        assert mpc_ae(f(z, tau=tau),
-                      f(z, omega1=omega1, omega2=omega2), eps=eps*1000)
-
-def test_weierstrass_g2g3_differential_equation():
-    # https://dlmf.nist.gov/23.3#E10
-    mp.dps = 30
-
-    z = mpf('0.3')
-    for g2, g3 in [(60, 140), (0, 140), (60, 0)]:
-        p = weierp(z, g2=g2, g3=g3)
-        pp = weierpprime(z, g2=g2, g3=g3)
-        assert mpc_ae(pp**2, 4*p**3 - g2*p - g3, eps=eps*1000)
-
-def test_weierstrass_pprime_sigma_duplication():
-    # https://dlmf.nist.gov/23.10#E10
-    mp.dps = 30
-
-    cases = [
-        (mpf('0.3'), mpf(60), mpf(140)),
-        (mpf('0.2') + j/10, mpc(1, 2), mpc(3, -4)),
-    ]
-    for z, g2, g3 in cases:
-        expected = -weiersigma(2*z, g2=g2, g3=g3)
-        expected /= weiersigma(z, g2=g2, g3=g3)**4
-        assert mpc_ae(weierpprime(z, g2=g2, g3=g3), expected,
-                      eps=eps*1000)
-
-def test_weierstrass_parameter_conversions():
-    mp.dps = 30
-
-    omega1 = 1
-    omega2 = j/2
-    g2, g3 = g2g3from(omega1=omega1, omega2=omega2)
-
-    omega1, omega2 = omega1omega2from(g2=g2, g3=g3)
-
-    g2_roundtrip, g3_roundtrip = g2g3from(
-        omega1=omega1, omega2=omega2)
-    assert mpc_ae(g2, g2_roundtrip, eps=eps*10000)
-    assert mpc_ae(g3, g3_roundtrip, eps=eps*10000)
-    tau = omega2/omega1
-    assert abs(tau.real) <= mpf('0.5')
-    assert abs(tau) >= 1
-
-def test_weierstrass_pair_argument_conversions():
-    mp.dps = 30
-
-    tau = mpf(1)/4 + 6*j/5
-    expected_omega1 = mpf(1)/2
-    expected_omega2 = tau/2
-    expected_g2, expected_g3 = g2g3from(tau=tau)
-    representations = [
-        {'q': qfrom(tau=tau)},
-        {'qbar': qbarfrom(tau=tau)},
-        {'m': mfrom(tau=tau)},
-        {'k': kfrom(tau=tau)},
-        {'tau': tau},
-    ]
-
-    for representation in representations:
-        omega1, omega2 = omega1omega2from(**representation)
-        assert mpc_ae(omega1, expected_omega1, eps=eps*1000)
-        assert mpc_ae(omega2, expected_omega2, eps=eps*1000)
-
-        g2, g3 = g2g3from(**representation)
-        assert mpc_ae(g2, expected_g2, eps=eps*1000)
-        assert mpc_ae(g3, expected_g3, eps=eps*1000)
-
-    assert g2g3from(g2=expected_g2, g3=expected_g3) == (
-        expected_g2, expected_g3)
-    assert omega1omega2from(
-        omega1=expected_omega1, omega2=expected_omega2) == (
-            expected_omega1, expected_omega2)
-
-    omega1, omega2 = omega1omega2from(
-        g2=expected_g2, g3=expected_g3)
-    assert mpc_ae(omega1, expected_omega1, eps=eps*1000)
-    assert mpc_ae(omega2, expected_omega2, eps=eps*1000)
-    g2, g3 = g2g3from(omega1=omega1, omega2=omega2)
-    assert mpc_ae(g2, expected_g2, eps=eps*1000)
-    assert mpc_ae(g3, expected_g3, eps=eps*1000)
-
-def test_weierstrass_special_half_periods():
-    mp.dps = 30
-
-    # Scaled version of http://dlmf.nist.gov/23.5.E5
-    lemniscatic = gamma(1/4)**2/(4*sqrt(pi))
-    omega1, omega2 = omega1omega2from(g2=1, g3=0)
-    lattice_points = [
-        m*omega1 + n*omega2
-        for m in [-1, 0, 1]
-        for n in [-1, 0, 1]
-        if m or n
-    ]
-    assert min(abs(point - lemniscatic) for point in lattice_points) < eps*1000
-    assert min(abs(point - j*lemniscatic) for point in lattice_points) < eps*1000
-
-    # Scaled version of http://dlmf.nist.gov/23.5.E9
-    equianharmonic = gamma(mpf(1)/3)**3/(4*pi)
-    tau = 0.5 + sqrt(3)*j/2
-    omega1, omega2 = omega1omega2from(g2=0, g3=1)
-    assert mpc_ae(omega1, equianharmonic, eps=eps*1000)
-    assert mpc_ae(omega2, equianharmonic*tau, eps=eps*1000)
-
-def test_weierstrass_half_periods_high_precision():
-    mp.dps = 80
-
-    g2 = 60
-    g3 = 140
-    omega1, omega2 = omega1omega2from(g2=g2, g3=g3)
-    g2_roundtrip, g3_roundtrip = g2g3from(
-        omega1=omega1, omega2=omega2)
-
-    assert mpc_ae(g2_roundtrip, g2, eps=eps*10000)
-    assert mpc_ae(g3_roundtrip, g3, eps=eps*10000)
-
-def test_weierstrass_half_periods_reference_values():
-    mp.dps = 30
-
-    cases = [
-        # Wolfram Engine N[WeierstrassHalfPeriods[{12, 1}], 30]
-        ((12, 1),
-         (mpc('0.980738294394739292410226347661'),
-          mpc('1.01377388832044810173727513686j'))),
-        # Wolfram Engine N[WeierstrassHalfPeriods[{12, -1}], 30]
-        ((12, -1),
-         (mpc('-0.980738294394739292410226347661j'),
-          mpc('1.01377388832044810173727513686'))),
-        # Wolfram Engine
-        # N[WeierstrassHalfPeriods[{1 + 2 I, 3 - 4 I}], 30]
-        ((1+2j, 3-4j),
-         (mpc('0.384323637351610816269007338473',
-              '1.048679479243511496217225594331'),
-          mpc('-1.174237734840406867019569638285',
-              '-0.123713024549329486202780646669'))),
-    ]
-
-    for invariants, expected in cases:
-        periods = omega1omega2from(g2=invariants[0], g3=invariants[1])
-        assert mpc_ae(periods[0], expected[0], eps=eps*1000)
-        assert mpc_ae(periods[1], expected[1], eps=eps*1000)
-
-def test_weierstrass_half_periods_boundary_convention():
-    for dps in [15, 30, 50]:
-        with mp.workdps(dps):
-            omega1, omega2 = omega1omega2from(g2=60, g3=140)
-            tau = omega2/omega1
-            assert mp.almosteq(tau.real, mpf('0.5'))
-
-            omega1, omega2 = omega1omega2from(g2=-4, g3=1)
-            tau = omega2/omega1
-            assert mp.almosteq(abs(tau), 1)
-            assert tau.real >= 0
-
-def test_weierstrass_parameter_conversions_with_kleinj():
-    mp.dps = 30
-
-    tau = 0.625 + 0.75j
-    g2, g3 = g2g3from(omega1=0.5, omega2=tau/2)
-    recovered_omega1, recovered_omega2 = omega1omega2from(g2=g2, g3=g3)
-    recovered_tau = recovered_omega2/recovered_omega1
-    j_from_invariants = g2**3/(g2**3 - 27*g3**2)
-
-    assert mpc_ae(kleinj(tau), j_from_invariants, eps=eps*1000)
-    assert mpc_ae(kleinj(recovered_tau), kleinj(tau), eps=eps*1000)
-    assert mpc_ae(kleinj(taufrom(g2=g2, g3=g3)), kleinj(tau),
-                  eps=eps*1000)
-
-def test_kleinj_from_weierstrass_invariants():
-    mp.dps = 30
-
-    tau = 0.625 + 0.75j
-    g2, g3 = g2g3from(omega1=0.5, omega2=tau/2)
-
-    assert mpc_ae(kleinj(g2=g2, g3=g3), kleinj(tau), eps=eps*1000)
-    assert kleinj(g2=0, g3=1).ae(0)
-    assert kleinj(g2=1, g3=0).ae(1)
-    pytest.raises(ValueError, lambda: kleinj(g2=g2))
-    pytest.raises(ValueError, lambda: kleinj(g3=g3))
-
-def test_kleinj_argument_conversions():
-    mp.dps = 30
-
-    tau = 0.625 + 0.75j
-    value = kleinj(tau)
-
-    assert mpc_ae(kleinj(q=qfrom(tau=tau)), value, eps=eps*1000)
-    assert mpc_ae(kleinj(qbar=qbarfrom(tau=tau)), value, eps=eps*1000)
-    assert mpc_ae(kleinj(k=kfrom(tau=tau)), value, eps=eps*1000)
-    assert mpc_ae(kleinj(m=mfrom(tau=tau)), value, eps=eps*1000)
-    assert mpc_ae(kleinj(omega1=1, omega2=tau), value, eps=eps*1000)
-    pytest.raises(ValueError, lambda: kleinj(omega1=1))
-
-def test_kleinjinv():
-    mp.dps = 30
-
-    tau = 0.625 + 0.75j
-    value = kleinj(tau)
-
-    assert mpc_ae(kleinj(kleinjinv(value)), value, eps=eps*1000)
-    assert mpc_ae(kleinjinv(0), 0.5 + sqrt(3)*j/2,
-                  eps=eps*1000)
-    assert mpc_ae(kleinjinv(1), j, eps=eps*1000)
-
-
-def test_kleinjinv_fundamental_domain():
-    mp.dps = 30
-
-    assert mpc_ae(kleinjinv(0), mpf('0.5') + sqrt(3)*j/2,
-                  eps=eps*1000)
-    circular_boundary_tau = kleinjinv(mpf('0.25'))
-    assert mp.almosteq(abs(circular_boundary_tau), 1)
-    assert circular_boundary_tau.real > 0
-    assert mp.almosteq(kleinj(circular_boundary_tau), mpf('0.25'),
-                       rel_eps=mp.eps*100000, abs_eps=mp.eps*100000)
-
-    for tau in [0.625 + 0.75*j, 2.3 + 0.4*j, -1.7 + 0.2*j,
-                0.1 + 2.5*j]:
-        value = kleinj(tau)
-        recovered = kleinjinv(value)
-        assert mp.almosteq(kleinj(recovered), value,
-                           rel_eps=mp.eps*100000, abs_eps=mp.eps*100000)
-        assert recovered.imag > 0
-        assert abs(recovered.real) <= mpf('0.5') + mp.eps*100
-        assert abs(recovered) >= 1 - mp.eps*100
-
-
-def test_kleinjinv_real_values():
-    mp.dps = 30
-
-    for value in [mpf('1.01'), mpf(2), mpf('1e6'), mpc(2, 0)]:
-        tau = kleinjinv(value)
-        assert tau.real == 0
-        assert tau.imag >= 1
-        assert mp.almosteq(kleinj(tau), value,
-                           rel_eps=mp.sqrt(mp.eps), abs_eps=mp.eps*10000)
-
-def test_taufrom_weierstrass_invariants():
-    mp.dps = 30
-
-    tau = 0.625 + 0.75j
-    g2, g3 = g2g3from(omega1=0.5, omega2=tau/2)
-    recovered_tau = taufrom(g2=g2, g3=g3)
-
-    assert mpc_ae(kleinj(recovered_tau), kleinj(tau), eps=eps*1000)
-    assert recovered_tau.imag > 0
-    assert abs(recovered_tau.real) <= mpf('0.5') + mp.eps*100
-    assert abs(recovered_tau) >= 1 - mp.eps*100
-
-    for real_g2, real_g3 in [
-            (60, 140), (12, 1), (12, -1), (1, -1),
-            (-4, 1), (-4, -1), (0, 1), (1, 0)]:
-        recovered_tau = taufrom(g2=real_g2, g3=real_g3)
-        omega1, omega2 = omega1omega2from(g2=real_g2, g3=real_g3)
-        assert mpc_ae(recovered_tau, omega2/omega1, eps=eps*1000)
-
-    pytest.raises(ValueError, lambda: taufrom(g2=g2))
-    pytest.raises(ValueError, lambda: taufrom(g3=g3))
-
-
-def test_weierstrass_half_periods_direct_agm_roundtrip():
-    base_cases = [
-        (60, 140), (12, 1), (12, -1), (4, 1), (4, -1),
-        (1, 1), (1, -1), (10, 5), (100, 1), (-4, 1), (-4, -1),
-        (1 + 2*j, 3 - 4*j),
-    ]
-
-    for dps in [15, 30, 80]:
-        with mp.workdps(dps):
-            # Recompute these phases at the active precision. They exercise
-            # the fallback's vertical and circular boundary normalization.
-            cases = base_cases + [
-                (mpf('0.01')*exp(j*pi/6), exp(j*pi/4)),
-                (exp(-j*pi/6), mpf('0.0001')*exp(-3*j*pi/4)),
-            ]
-            for g2, g3 in cases:
-                omega1, omega2 = omega1omega2from(g2=g2, g3=g3)
-                actual_g2, actual_g3 = g2g3from(
-                    omega1=omega1, omega2=omega2)
-                tol = mp.eps*10000
-                assert mp.almosteq(actual_g2, g2,
-                                   rel_eps=tol, abs_eps=tol)
-                assert mp.almosteq(actual_g3, g3,
-                                   rel_eps=tol, abs_eps=tol)
-
-                tau = omega2/omega1
-                assert tau.imag > 0
-                assert abs(tau.real) <= mpf('0.5') + tol
-                assert abs(tau) >= 1 - tol
-
-
-def test_weierstrass_parameter_conversion_normalization():
-    with mp.workprec(100):
-        high_precision = sqrt(2)
-
-    with mp.workprec(53):
-        invariant_results = [
-            g2g3from(g2=high_precision, g3=high_precision + 1),
-            g2g3from(tau=mpc('0.3', '1.2')),
-            g2g3from(omega1=high_precision,
-                     omega2=j*high_precision),
-        ]
-        period_results = [
-            omega1omega2from(omega1=high_precision,
-                             omega2=j*high_precision),
-            omega1omega2from(tau=mpc('0.3', '1.2')),
-            omega1omega2from(g2=12, g3=1),
-            omega1omega2from(g2=60, g3=140),
-            omega1omega2from(g2=1 + 2*j, g3=3 - 4*j),
-            omega1omega2from(g2=1, g3=0),
-            omega1omega2from(g2=0, g3=1),
-        ]
-
-        for result in invariant_results + period_results:
-            assert result == tuple(+value for value in result)
-
-
-def test_weierstrass_period_method_switch_is_continuous():
-    mp.dps = 50
-    threshold = ldexp(1, -20)
-
-    # The internal method switches when the ratio between |g2|**3 and
-    # 27*|g3|**2 crosses this threshold. Exercise both the J=0 and J=1
-    # sides and ensure the canonical period basis does not jump.
-    families = [
-        lambda ratio: ((27*ratio)**(mpf(1)/3), mpf(1)),
-        lambda ratio: (mpf(1), sqrt(ratio/27)),
-    ]
-    for make_invariants in families:
-        below = make_invariants(threshold*(1-mpf('1e-8')))
-        above = make_invariants(threshold*(1+mpf('1e-8')))
-        periods_below = omega1omega2from(g2=below[0], g3=below[1])
-        periods_above = omega1omega2from(g2=above[0], g3=above[1])
-
-        for value_below, value_above in zip(periods_below, periods_above):
-            assert mp.almosteq(value_below, value_above,
-                               rel_eps=mpf('1e-8'), abs_eps=mpf('1e-8'))
-
-        for invariants, periods in [(below, periods_below),
-                                    (above, periods_above)]:
-            actual = g2g3from(omega1=periods[0], omega2=periods[1])
-            assert mp.almosteq(actual[0], invariants[0],
-                               rel_eps=mp.eps*10000)
-            assert mp.almosteq(actual[1], invariants[1],
-                               rel_eps=mp.eps*10000)
-
-def test_taufrom_half_periods():
-    mp.dps = 30
-
-    assert mpc_ae(taufrom(omega1=1, omega2=0.5*j), 0.5*j,
-                  eps=eps*1000)
-    pytest.raises(ValueError, lambda: taufrom(omega1=1))
-    pytest.raises(ValueError, lambda: taufrom(omega2=j))
-    pytest.raises(ValueError, lambda: taufrom(omega1=1, omega2=-j))
-
-def test_weierstrass_half_period_values_are_cubic_roots():
-    mp.dps = 30
-
-    omega1 = 1
-    omega2 = j/2
-    g2, g3 = g2g3from(omega1=omega1, omega2=omega2)
-
-    roots = polyroots([-g3, -g2, 0, 4], maxsteps=50)
-    half_period_values = [
-        weierp(omega1, omega1=omega1, omega2=omega2),
-        weierp(omega2, omega1=omega1, omega2=omega2),
-        weierp(omega1 + omega2, omega1=omega1, omega2=omega2),
-    ]
-    half_period_derivatives = [
-        weierpprime(omega1, omega1=omega1, omega2=omega2),
-        weierpprime(omega2, omega1=omega1, omega2=omega2),
-        weierpprime(omega1 + omega2, omega1=omega1, omega2=omega2),
-    ]
-
-    for value in half_period_values:
-        assert mpc_ae(4*value**3 - g2*value - g3, 0,
-                      eps=eps*1000)
-        assert min(abs(value - root) for root in roots) < eps*1000
-    for value in half_period_derivatives:
-        assert mpc_ae(value, 0, eps=eps*1000)
-    for root in roots:
-        assert min(abs(value - root) for value in half_period_values) < eps*1000
-
-def test_weierstrass_conversions_with_weierp():
-    mp.dps = 30
-
-    z = mpf('0.3')
-    g2, g3 = 60, 140
-    omega1, omega2 = omega1omega2from(g2=g2, g3=g3)
-    assert mpc_ae(weierp(z, g2=g2, g3=g3),
-                  weierp(z, omega1=omega1, omega2=omega2), eps=eps*1000)
-
-def test_weierstrass_periodicity():
-    mp.dps = 30
-
-    # http://dlmf.nist.gov/23.2.E9
-    z = mpf('0.3')
-    omega1 = 1
-    omega2 = j/2
-    p = weierp(z, omega1=omega1, omega2=omega2)
-    pp = weierpprime(z, omega1=omega1, omega2=omega2)
-
-    assert mpc_ae(weierp(z + 2*omega1, omega1=omega1, omega2=omega2),
-                  p, eps=eps*1000)
-    assert mpc_ae(weierp(z + 2*omega2, omega1=omega1, omega2=omega2),
-                  p, eps=eps*1000)
-    assert mpc_ae(weierpprime(z + 2*omega1,
-                              omega1=omega1, omega2=omega2), pp,
-                  eps=eps*1000)
-    assert mpc_ae(weierpprime(z + 2*omega2,
-                              omega1=omega1, omega2=omega2), pp,
-                  eps=eps*1000)
-
-def test_weierstrass_scaling_laws():
-    mp.dps = 30
-
-    # http://dlmf.nist.gov/23.10.iv
-    z = mpf('0.3')
-    scale = mpf('1.7')
-    omega1 = 1
-    omega2 = j/2
-    scaled_omega1 = scale*omega1
-    scaled_omega2 = scale*omega2
-
-    assert mpc_ae(weierp(scale*z, omega1=scaled_omega1,
-                         omega2=scaled_omega2),
-                  weierp(z, omega1=omega1, omega2=omega2)/scale**2,
-                  eps=eps*1000)
-    assert mpc_ae(weierpprime(scale*z, omega1=scaled_omega1,
-                              omega2=scaled_omega2),
-                  weierpprime(z, omega1=omega1, omega2=omega2)/scale**3,
-                  eps=eps*1000)
-    assert mpc_ae(weiersigma(scale*z, omega1=scaled_omega1,
-                             omega2=scaled_omega2),
-                  scale*weiersigma(z, omega1=omega1, omega2=omega2),
-                  eps=eps*1000)
-    assert mpc_ae(weierzeta(scale*z, omega1=scaled_omega1,
-                            omega2=scaled_omega2),
-                  weierzeta(z, omega1=omega1, omega2=omega2)/scale,
-                  eps=eps*1000)
-
-def test_weierstrass_tau_omega_parameterizations():
-    mp.dps = 30
-
-    z = mpf('0.3')
-    tau = j/2
-    omega1 = 0.5
-    omega2 = tau/2
-    for f in [weierp, weierpprime, weiersigma, weierzeta]:
-        assert mpc_ae(f(z, tau=tau), f(z, omega1=omega1, omega2=omega2))
-
-def test_weierstrass_addition_theorem():
-    mp.dps = 30
-
-    # http://dlmf.nist.gov/23.10.E1
-    z = mpf('0.3')
-    w = mpf('0.4') + j/10
-    omega1 = 1
-    omega2 = j/2
-
-    pz = weierp(z, omega1=omega1, omega2=omega2)
-    pw = weierp(w, omega1=omega1, omega2=omega2)
-    ppz = weierpprime(z, omega1=omega1, omega2=omega2)
-    ppw = weierpprime(w, omega1=omega1, omega2=omega2)
-    rhs = ((ppz - ppw)/(pz - pw))**2/4 - pz - pw
-
-    assert mpc_ae(weierp(z + w, omega1=omega1, omega2=omega2),
-                  rhs, eps=eps*1000)
-
-def test_weierstrass_zeta_legendre_relation():
-    mp.dps = 30
-
-    # http://dlmf.nist.gov/23.2.E11
-    # http://dlmf.nist.gov/23.2.E14
-    z = mpf('0.3') + j/10
-    omega1 = 1
-    omega2 = j/2
-
-    eta1_increment = weierzeta(z + 2*omega1,
-                               omega1=omega1, omega2=omega2)
-    eta1_increment -= weierzeta(z, omega1=omega1, omega2=omega2)
-    eta2_increment = weierzeta(z + 2*omega2,
-                               omega1=omega1, omega2=omega2)
-    eta2_increment -= weierzeta(z, omega1=omega1, omega2=omega2)
-    assert mpc_ae(eta1_increment*omega2 - eta2_increment*omega1,
-                  pi*j, eps=eps*1000)
-
-    eta1 = weierzeta(omega1, omega1=omega1, omega2=omega2)
-    eta2 = weierzeta(omega2, omega1=omega1, omega2=omega2)
-    assert mpc_ae(eta1*omega2 - eta2*omega1, pi*j/2, eps=eps*1000)
-
-def test_weierstrass_sigma_zeta_identities():
-    mp.dps = 30
-
-    # http://dlmf.nist.gov/23.2.E8
-    z = mpf('0.3')
-    tau = j/2
-    assert mpc_ae(diff(lambda t: weiersigma(t, tau=tau), z) /
-                  weiersigma(z, tau=tau), weierzeta(z, tau=tau),
-                  eps=eps*1000)
-    assert mpc_ae(diff(lambda t: weierzeta(t, tau=tau), z),
-                  -weierp(z, tau=tau), eps=eps*1000)
-
-def test_weierstrass_weierpinv():
-    mp.dps = 30
-
-    z = mpf('0.3')
-    g2, g3 = 60, 140
-    p = weierp(z, g2=g2, g3=g3)
-    pp = weierpprime(z, g2=g2, g3=g3)
-    z2 = weierpinv(p, g2=g2, g3=g3)
-    assert mpc_ae(z2, z, eps=eps*1000)
-    assert mpc_ae(weierp(z2, g2=g2, g3=g3), p, eps=eps*1000)
-
-    z2 = weierpinv(p, g2=g2, g3=g3, weierp_prime=pp)
-    assert mpc_ae(z2, z, eps=eps*1000)
-    assert mpc_ae(weierpprime(z2, g2=g2, g3=g3), pp, eps=eps*1000)
-
-    z2 = weierpinv(p, g2=g2, g3=g3, weierp_prime=-pp)
-    assert mpc_ae(z2, -z, eps=eps*1000)
-    assert mpc_ae(weierpprime(z2, g2=g2, g3=g3), -pp, eps=eps*1000)
-
-def test_weierstrass_p_agrees_with_jacobi_sn():
-    mp.dps = 30
-
-    # If e1 + e2 + e3 = 0, then
-    #
-    #     wp(z; g2, g3) = e3 + (e1 - e3)/sn(sqrt(e1 - e3)*z, m)**2
-    #
-    # where
-    #
-    #     m = (e2 - e3)/(e1 - e3)
-    #
-    # and 4*(x - e1)*(x - e2)*(x - e3) = 4*x**3 - g2*x - g3.
-    # Shifted version of http://dlmf.nist.gov/23.6.E26
-    e1 = 2
-    e2 = -0.5
-    e3 = -mpf(3)/2
-
-    g2 = -4*(e1*e2 + e1*e3 + e2*e3)
-    g3 = 4*e1*e2*e3
-
-    scale = sqrt(e1 - e3)
-    m = (e2 - e3)/(e1 - e3)
-
-    z_values = [
-        mpf('0.2'),
-        mpf('0.3'),
-        mpf('0.2') + j/10,
-        mpf('0.4') - j/20,
-    ]
-
-    for z in z_values:
-        sn = ellipfun('sn', scale*z, m)
-        expected = e3 + (e1 - e3)/sn**2
-        assert mpc_ae(weierp(z, g2=g2, g3=g3), expected, eps=eps*1000)
-
-def test_weierstrass_degenerate_sinh_case():
-    mp.dps = 30
-
-    z = mpf('2.3456')
-    g2 = mpf(1)/12
-    g3 = -mpf(1)/216
-
-    expected = mpf(1)/12 + 1/(4*sinh(z/2)**2)
-    actual = weierp(z, g2=g2, g3=g3)
-
-    assert mpc_ae(actual, expected, eps=eps*1000)
-
-def test_weierstrass_values_from_wolfram_engine():
-    """
-    Test values computed with Wolfram Engine at 50 decimal digits.
-    """
-    mp.dps = 30
-
-    z = mpf(1)/5 + j/10
-    g2 = 23
-    g3 = -6
-
-    # Wolfram Engine N[WeierstrassP[1/5 + I/10, {23, -6}], 50]
-    res = (mpf('12.034598774562061614120425445264439480909180451987') -
-           mpf('15.954494688453814173909097100149572873560659025384')*j)
-    result = weierp(z, g2=g2, g3=g3)
-    assert mpc_ae(result, res, eps=eps*1000)
-
-    # Wolfram Engine N[WeierstrassZeta[1/5 + I/10, {23, -6}], 50]
-    res = (mpf('3.9992187928039781633477175010941910299674720024081') -
-           mpf('2.0041989210825396679692243492987154755001509689191')*j)
-    result = weierzeta(z, g2=g2, g3=g3)
-    assert mpc_ae(result, res, eps=eps*1000)
-
-    # Wolfram Engine N[WeierstrassPPrime[1/5 + I/10, {23, -6}], 50]
-    res = (-mpf('31.54270502882344156819611453200111232882467293381') +
-           mpf('176.22165647344596777337677909680659880143827576854')*j)
-    result = weierpprime(z, g2=g2, g3=g3)
-    assert mpc_ae(result, res, eps=eps*1000)
-
-    # Wolfram Engine N[WeierstrassSigma[1/5 + I/10, {23, -6}], 50]
-    res = (mpf('0.20003622045198197835660834749697373254229661740043') +
-           mpf('0.09996069154774003218065176170970294010303412640179')*j)
-    result = weiersigma(z, g2=g2, g3=g3)
-    assert mpc_ae(result, res, eps=eps*1000)
-
-    z = mpf(23)/7 + j/19
-    g2 = 4
-    g3 = j/7
-
-    # Wolfram Engine N[WeierstrassP[23/7 + I/19, {4, I/7}], 50]
-    res = (mpf('2.2404307465194869190166863785647513208647609853834') -
-           mpf('0.5325343281547884762112232120255440012711106470188')*j)
-    result = weierp(z, g2=g2, g3=g3)
-    assert mpc_ae(result, res, eps=eps*1000)
-
-    # Wolfram Engine N[WeierstrassZeta[23/7 + I/19, {4, I/7}], 50]
-    res = (mpf('2.6598023545241487676259152806188261775361664938905') -
-           mpf('0.1724953898440469052904087998933282167782688769615')*j)
-    result = weierzeta(z, g2=g2, g3=g3)
-    assert mpc_ae(result, res, eps=eps*1000)
-
-    # Wolfram Engine N[WeierstrassPPrime[23/7 + I/19, {4, I/7}], 50]
-    res = (-mpf('5.8878748476527295086161128667469618082615948921289') +
-           mpf('2.5039163494781823494565528962139346083786451647413')*j)
-    result = weierpprime(z, g2=g2, g3=g3)
-    assert mpc_ae(result, res, eps=eps*1000)
-
-    # Wolfram Engine N[WeierstrassSigma[23/7 + I/19, {4, I/7}], 50]
-    res = (-mpf('6.9051546244372935099218335621773818059877316069834') -
-           mpf('1.7875281795111006668737717361366903871401611117693')*j)
-    result = weiersigma(z, g2=g2, g3=g3)
-    assert mpc_ae(result, res, eps=eps*1000)
-
-
-def test_weierstrass_invalid_parameterization():
-    z = mpf('0.3')
-    pytest.raises(ValueError, lambda: weierp(z))
-    pytest.raises(ValueError, lambda: weierp(z, g2=1))
-    pytest.raises(ValueError, lambda: weierp(z, tau=-j))
-    pytest.raises(ValueError, lambda: weierp(z, omega1=1))
-    pytest.raises(ValueError, lambda: weierp(z, omega1=1, omega2=-j))
-    pytest.raises(ValueError, lambda: weierp(z, g2=60, g3=140, tau=j/2))
-    pytest.raises(ValueError,
-                  lambda: g2g3from(omega1=1, omega2=-j))
-    pytest.raises(ValueError, lambda: g2g3from(omega1=1))
-    pytest.raises(ValueError, lambda: omega1omega2from(g2=1))
-    pytest.raises(ValueError, lambda: g2g3from())
-    pytest.raises(ValueError, lambda: omega1omega2from())
-    pytest.raises(ValueError,
-                  lambda: g2g3from(g2=1, g3=0, tau=j))
-    pytest.raises(ValueError,
-                  lambda: omega1omega2from(g2=1, g3=0, tau=j))
-    pytest.raises(ValueError, lambda: g2g3from(tau=-j))
-    pytest.raises(ValueError, lambda: omega1omega2from(tau=-j))

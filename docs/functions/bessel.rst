@@ -33,15 +33,6 @@ Hankel functions
 .. autofunction:: mpmath.hankel2
 
 
-Spherical Bessel functions
-..........................
-
-.. autofunction:: mpmath.spherical_jn
-.. autofunction:: mpmath.spherical_yn
-.. autofunction:: mpmath.spherical_in
-.. autofunction:: mpmath.spherical_kn
-
-
 Kelvin functions
 ................
 
@@ -94,9 +85,9 @@ Coulomb wave functions
 Confluent U and Whittaker functions
 ...................................
 
-.. autofunction:: mpmath.hyperu
-.. autofunction:: mpmath.whitm
-.. autofunction:: mpmath.whitw
+.. autofunction:: mpmath.hyperu(a, b, z)
+.. autofunction:: mpmath.whitm(k,m,z)
+.. autofunction:: mpmath.whitw(k,m,z)
 
 
 Parabolic cylinder functions

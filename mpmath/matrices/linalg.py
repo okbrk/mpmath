@@ -188,7 +188,7 @@ class LinearAlgebraMethods:
             x[i] /= U[i,i]
         return x
 
-    def lu_solve(ctx, A, b):
+    def lu_solve(ctx, A, b, **kwargs):
         """
         Ax = b => x
 
@@ -202,7 +202,7 @@ class LinearAlgebraMethods:
         try:
             ctx.prec += 10
             # do not overwrite A nor b
-            A, b = ctx.matrix(A).copy(), ctx.matrix(b).copy()
+            A, b = ctx.matrix(A, **kwargs).copy(), ctx.matrix(b, **kwargs).copy()
             if A.rows < A.cols:
                 raise ValueError('cannot solve underdetermined system')
             if A.rows > A.cols:
@@ -278,7 +278,7 @@ class LinearAlgebraMethods:
         assert 0 < i <= n, 'this unit vector does not exist'
         return [ctx.zero]*(i-1) + [ctx.one] + [ctx.zero]*(n-i)
 
-    def inverse(ctx, A):
+    def inverse(ctx, A, **kwargs):
         """
         Calculate the inverse of a matrix.
 
@@ -289,7 +289,7 @@ class LinearAlgebraMethods:
         try:
             ctx.prec += 10
             # do not overwrite A
-            A = ctx.matrix(A).copy()
+            A = ctx.matrix(A, **kwargs).copy()
             n = A.rows
             # get LU factorisation
             A, p = ctx.LU_decomp(A)
@@ -306,49 +306,10 @@ class LinearAlgebraMethods:
                 for j in range(n):
                     row.append(cols[j][i])
                 inv.append(row)
-            result = ctx.matrix(inv)
+            result = ctx.matrix(inv, **kwargs)
         finally:
             ctx.prec = prec
         return result
-
-    def pinv(ctx, A, *, rtol=None):
-        """
-        Returns Moore-Penrose pseudoinverse of the matrix `A`.
-
-        This is a generalization of the matrix inverse that provides a unique
-        result even for singular and non-square matrices. In the overdetermined
-        case, it provides the least squares solution. In the underdetermined
-        case, it provides the minimum norm solution.
-
-        The Moore-Penrose inverse of `A` is computed using its singular-value
-        decomposition. If `s` is the maximum singular value of `A`, then the
-        significance cut-off value is determined by `rtol * s`. Any singular
-        value below this value is assumed insignificant.
-
-        **Arguments**
-
-        A : The matrix to compute the pseudoinverse for.
-        rtol: Optional relative threshold term.
-            The default value is ctx.eps * max(A.rows, A.cols).
-
-        **References**
-
-        * [Wikipedia]_ https://en.wikipedia.org/wiki/Moore%E2%80%93Penrose_inverse
-        """
-        U, S, V = ctx.svd(A)
-
-        if not rtol:
-            rtol = max(A.rows, A.cols) * S[0] * ctx.eps
-        assert rtol > 0
-
-        Splus = ctx.zeros(V.cols, U.cols)
-        for ind, val in enumerate(S):
-            if val > rtol * max(S):
-                Splus[ind, ind] = 1/val
-
-        v_conj_T = V.apply(lambda x: ctx.conj(x)).T
-        u_conj_T = U.apply(lambda x: ctx.conj(x)).T
-        return v_conj_T * Splus * u_conj_T
 
     def householder(ctx, A):
         """
@@ -371,10 +332,7 @@ class LinearAlgebraMethods:
             s = ctx.fsum(abs(A[i,j])**2 for i in range(j, m))
             if not abs(s) > ctx.eps:
                 raise ValueError('matrix is numerically singular')
-            sign = ctx.sign(ctx.re(A[j,j]))
-            if sign == 0:
-                sign = ctx.one
-            p.append(-sign * ctx.sqrt(s))
+            p.append(-ctx.sign(ctx.re(A[j,j])) * ctx.sqrt(s))
             kappa = ctx.one / (s - p[j] * A[j,j])
             A[j,j] -= p[j]
             for k in range(j+1, n):
@@ -406,7 +364,7 @@ class LinearAlgebraMethods:
     #    H, p, x, res = householder(A)
     # TODO: implement this
 
-    def residual(ctx, A, x, b):
+    def residual(ctx, A, x, b, **kwargs):
         """
         Calculate the residual of a solution to a linear equation system.
 
@@ -415,12 +373,12 @@ class LinearAlgebraMethods:
         oldprec = ctx.prec
         try:
             ctx.prec *= 2
-            A, x, b = ctx.matrix(A), ctx.matrix(x), ctx.matrix(b)
+            A, x, b = ctx.matrix(A, **kwargs), ctx.matrix(x, **kwargs), ctx.matrix(b, **kwargs)
             return A*x - b
         finally:
             ctx.prec = oldprec
 
-    def qr_solve(ctx, A, b, norm=None):
+    def qr_solve(ctx, A, b, norm=None, **kwargs):
         """
         Ax = b => x, ||Ax - b||
 
@@ -436,7 +394,7 @@ class LinearAlgebraMethods:
         try:
             ctx.prec += 10
             # do not overwrite A nor b
-            A, b = ctx.matrix(A).copy(), ctx.matrix(b).copy()
+            A, b = ctx.matrix(A, **kwargs).copy(), ctx.matrix(b, **kwargs).copy()
             if A.rows < A.cols:
                 raise ValueError('cannot solve underdetermined system')
             H, p, x, r = ctx.householder(ctx.extend(A, b))
@@ -444,7 +402,7 @@ class LinearAlgebraMethods:
             # calculate residual "manually" for determined systems
             if res == 0:
                 res = ctx.norm(ctx.residual(A, x, b))
-            return ctx.matrix(x), res
+            return ctx.matrix(x, **kwargs), res
         finally:
             ctx.prec = prec
 
@@ -468,8 +426,7 @@ class LinearAlgebraMethods:
 
             >>> from mpmath import (mp, eye, hilbert, nprint, cholesky,
             ...                     chop, matrix)
-            >>> mp.dps = 25
-            >>> mp.pretty = True
+            >>> mp.dps = 25; mp.pretty = True
             >>> A = eye(3) + hilbert(3)
             >>> nprint(A)
             [     2.0      0.5  0.333333]
@@ -509,7 +466,7 @@ class LinearAlgebraMethods:
 
         **References**
 
-        1. [Wikipedia]_ https://en.wikipedia.org/wiki/Cholesky_decomposition
+        1. [Wikipedia]_ http://en.wikipedia.org/wiki/Cholesky_decomposition
 
         """
         if not isinstance(A, ctx.matrix):
@@ -536,7 +493,7 @@ class LinearAlgebraMethods:
                 L[i,j] = (A[i,j] - t) / L[j,j]
         return L
 
-    def cholesky_solve(ctx, A, b):
+    def cholesky_solve(ctx, A, b, **kwargs):
         """
         Ax = b => x
 
@@ -552,7 +509,7 @@ class LinearAlgebraMethods:
         try:
             ctx.prec += 10
             # do not overwrite A nor b
-            A, b = ctx.matrix(A).copy(), ctx.matrix(b).copy()
+            A, b = ctx.matrix(A, **kwargs).copy(), ctx.matrix(b, **kwargs).copy()
             if A.rows !=  A.cols:
                 raise ValueError('can only solve determined system')
             # Cholesky factorization
@@ -581,35 +538,33 @@ class LinearAlgebraMethods:
 
         Determinant of identity is 1.
 
-        >>> from mpmath import eye, matrix, det, mp
-        >>> mp.pretty = True
+        >>> from mpmath import eye, matrix, det
         >>> A = eye(3)
-        >>> det(A)
+        >>> print(det(A))
         1.0
 
         The determinant of a 0 by 0 matrix is 1 as the product of no factors
         is by convention the multiplicative identity.
-
         >>> A = matrix(0, 0)
-        >>> det(A)
+        >>> print(det(A))
         1
 
         But in general a matrix can have any number as its determinant.
 
         >>> A = matrix([[2, 6, 4],[3, 8, 6],[1, 1, 2]])
-        >>> det(A)
+        >>> print(det(A))
         0
 
         The determinant is vanishing if a matrix has no inverse.
 
         >>> A = matrix([[1, 3, 2],[0, 1, 0],[0, 0, 0]])
-        >>> det(A)
+        >>> print(det(A))
         0
 
         But, matrix has determinate different from zero full rank if and only is is equivalent to identity,
 
         >>> A = matrix([[1, 3, -2], [1, 9, -6], [1, 4, -3]])
-        >>> det(A)
+        >>> print(det(A))
         -2.0
 
         i.e. has an inverse matrix.
@@ -617,7 +572,7 @@ class LinearAlgebraMethods:
         >>> B = matrix([[3, -1, 0], [3, 1, -4], [5, 1, -6]]) / 2
         >>> A*B == eye(3)
         True
-        >>> det(B)
+        >>> print(det(B))
         -0.5
 
         Moreover, a matrix of integers has an inverse matrix of integers
@@ -627,8 +582,8 @@ class LinearAlgebraMethods:
         >>> B = matrix([[3, -1, 1],[2, 1, 0],[-2, 1, -1]])
         >>> A*B == eye(3)
         True
-        >>> det(A), det(B)
-        (-1.0, -1.0)
+        >>> print(det(A), det(B))
+        -1.0 -1.0
 
         """
         prec = ctx.prec

@@ -1,3 +1,5 @@
+import pytest
+
 from mpmath import e, exp, findpoly, identify, log, mp, pi, pslq, sqrt, zeta
 
 
@@ -19,4 +21,5 @@ def test_identify():
     assert identify(pi+1, {'a':+pi}) == '(1 + 1*a)'
 
 def test_findpoly_deprecated():
-    assert findpoly(1+sqrt(2), 2, asc=False) == [1, -2, -1]
+    with pytest.deprecated_call():
+        assert findpoly(1+sqrt(2), 2) == [1, -2, -1]

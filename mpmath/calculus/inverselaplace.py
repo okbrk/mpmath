@@ -38,7 +38,7 @@ class InverseLaplaceTransform:
 
 class FixedTalbot(InverseLaplaceTransform):
 
-    def calc_laplace_parameter(self, t, *, tmax=None, degree=None, r=None):
+    def calc_laplace_parameter(self, t, **kwargs):
         r"""The "fixed" Talbot method deforms the Bromwich contour towards
         `-\infty` in the shape of a parabola. Traditionally the Talbot
         algorithm has adjustable parameters, but the "fixed" version
@@ -101,16 +101,14 @@ class FixedTalbot(InverseLaplaceTransform):
         # ------------------------------
         # maximum time desired (used for scaling) default is requested
         # time.
-        if tmax is None:
-            tmax = self.t
-        self.tmax = self.ctx.convert(tmax)
+        self.tmax = self.ctx.convert(kwargs.get('tmax', self.t))
 
         # empirical relationships used here based on a linear fit of
         # requested and delivered dps for exponentially decaying time
         # functions for requested dps up to 512.
 
-        if degree is not None:
-            self.degree = degree
+        if 'degree' in kwargs:
+            self.degree = kwargs['degree']
             self.dps_goal = self.degree
         else:
             self.dps_goal = int(1.72*self.ctx.dps)
@@ -125,9 +123,7 @@ class FixedTalbot(InverseLaplaceTransform):
         self.ctx.dps = self.dps_goal
 
         # Abate & Valko rule of thumb for r parameter
-        if r is None:
-            r = self.ctx.fraction(2, 5)*M
-        self.r = r
+        self.r = kwargs.get('r', self.ctx.fraction(2, 5)*M)
 
         self.theta = self.ctx.linspace(0.0, self.ctx.pi, M+1)
 
@@ -176,9 +172,13 @@ class FixedTalbot(InverseLaplaceTransform):
 
         **References**
 
-        1. [Abate]_
-        2. [Talbot]_
-
+        1. Abate, J., P. Valko (2004). Multi-precision Laplace
+           transform inversion. *International Journal for Numerical
+           Methods in Engineering* 60:979-993,
+           http://dx.doi.org/10.1002/nme.995
+        2. Talbot, A. (1979). The accurate numerical inversion of
+           Laplace transforms. *IMA Journal of Applied Mathematics*
+           23(1):97, http://dx.doi.org/10.1093/imamat/23.1.97
         """
 
         # required
@@ -219,7 +219,7 @@ class FixedTalbot(InverseLaplaceTransform):
 
 class Stehfest(InverseLaplaceTransform):
 
-    def calc_laplace_parameter(self, t, *, degree=None):
+    def calc_laplace_parameter(self, t, **kwargs):
         r"""
         The Gaver-Stehfest method is a discrete approximation of the
         Widder-Post inversion algorithm, rather than a direct
@@ -253,8 +253,8 @@ class Stehfest(InverseLaplaceTransform):
         # requested and delivered dps for exponentially decaying time
         # functions for requested dps up to 512.
 
-        if degree is not None:
-            self.degree = degree
+        if 'degree' in kwargs:
+            self.degree = kwargs['degree']
             self.dps_goal = int(1.38*self.degree)
         else:
             self.dps_goal = int(2.93*self.ctx.dps)
@@ -325,8 +325,10 @@ class Stehfest(InverseLaplaceTransform):
 
         **References**
 
-        1. [Widder]_
-        2. [Stehfest]_
+        1. Widder, D. (1941). *The Laplace Transform*. Princeton.
+        2. Stehfest, H. (1970). Algorithm 368: numerical inversion of
+           Laplace transforms. *Communications of the ACM* 13(1):47-49,
+           http://dx.doi.org/10.1145/361953.361969
 
         """
 
@@ -351,8 +353,7 @@ class Stehfest(InverseLaplaceTransform):
 
 class deHoog(InverseLaplaceTransform):
 
-    def calc_laplace_parameter(self, t, *, tmax=None, degree=None, alpha=None,
-                               scale=2, tol=None, T=None):
+    def calc_laplace_parameter(self, t, **kwargs):
         r"""the de Hoog, Knight & Stokes algorithm is an
         accelerated form of the Fourier series numerical
         inverse Laplace transform algorithms.
@@ -390,16 +391,14 @@ class deHoog(InverseLaplaceTransform):
 
         # optional
         # ------------------------------
-        if tmax is None:
-            tmax = self.t
-        self.tmax = tmax
+        self.tmax = kwargs.get('tmax', self.t)
 
         # empirical relationships used here based on a linear fit of
         # requested and delivered dps for exponentially decaying time
         # functions for requested dps up to 512.
 
-        if degree is not None:
-            self.degree = degree
+        if 'degree' in kwargs:
+            self.degree = kwargs['degree']
             self.dps_goal = int(1.38*self.degree)
         else:
             self.dps_goal = int(self.ctx.dps*1.36)
@@ -411,14 +410,10 @@ class deHoog(InverseLaplaceTransform):
         # adjust alpha component of abscissa of convergence for higher
         # precision
         tmp = self.ctx.power(10.0, -self.dps_goal)
-        if alpha is None:
-            alpha = tmp
-        self.alpha = self.ctx.convert(alpha)
+        self.alpha = self.ctx.convert(kwargs.get('alpha', tmp))
 
         # desired tolerance (here simply related to alpha)
-        if tol is None:
-            tol = self.alpha*10.0
-        self.tol = self.ctx.convert(tol)
+        self.tol = self.ctx.convert(kwargs.get('tol', self.alpha*10.0))
         self.np = 2*self.degree+1  # number of terms in approximation
 
         # this is adjusting the dps of the calling context
@@ -428,10 +423,8 @@ class deHoog(InverseLaplaceTransform):
         self.ctx.dps = self.dps_goal
 
         # scaling factor (likely tun-able, but 2 is typical)
-        self.scale = scale
-        if T is None:
-            T = self.scale*self.tmax
-        self.T = self.ctx.convert(T)
+        self.scale = kwargs.get('scale', 2)
+        self.T = self.ctx.convert(kwargs.get('T', self.scale*self.tmax))
 
         self.p = self.ctx.matrix(2*M+1, 1)
         self.gamma = self.alpha - self.ctx.log(self.tol)/(self.scale*self.T)
@@ -463,8 +456,12 @@ class deHoog(InverseLaplaceTransform):
 
         **References**
 
-        1. [Davies]_
-        2. [Hoog]_
+        1. Davies, B. (2005). *Integral Transforms and their
+           Applications*, Third Edition. Springer.
+        2. de Hoog, F., J. Knight, A. Stokes (1982). An improved
+           method for numerical inversion of Laplace transforms. *SIAM
+           Journal of Scientific and Statistical Computing* 3:357-366,
+           http://dx.doi.org/10.1137/0903022
 
         """
 
@@ -544,7 +541,7 @@ class deHoog(InverseLaplaceTransform):
 
 class Cohen(InverseLaplaceTransform):
 
-    def calc_laplace_parameter(self, t, *, degree=None, alpha=None):
+    def calc_laplace_parameter(self, t, **kwargs):
         r"""The Cohen algorithm accelerates the convergence of the nearly
         alternating series resulting from the application of the trapezoidal
         rule to the Bromwich contour inversion integral.
@@ -580,13 +577,15 @@ class Cohen(InverseLaplaceTransform):
 
         **References**
 
-        1. [Glasserman]_
+        1. P. Glasserman, J. Ruiz-Mata (2006). Computing the credit loss
+        distribution in the Gaussian copula model: a comparison of methods.
+        *Journal of Credit Risk* 2(4):33-66, 10.21314/JCR.2006.057
 
         """
         self.t = self.ctx.convert(t)
 
-        if degree is not None:
-            self.degree = degree
+        if 'degree' in kwargs:
+            self.degree = kwargs['degree']
             self.dps_goal = int(1.5 * self.degree)
         else:
             self.dps_goal = int(self.ctx.dps * 1.74)
@@ -603,9 +602,7 @@ class Cohen(InverseLaplaceTransform):
         ttwo = 2 * self.t
         tmp = self.ctx.dps * self.ctx.log(10) + self.ctx.log(ttwo)
         tmp = self.ctx.fraction(2, 3) * tmp
-        if alpha is None:
-            alpha = tmp
-        self.alpha = self.ctx.convert(alpha)
+        self.alpha = self.ctx.convert(kwargs.get('alpha', tmp))
 
         # all but time-dependent part of p
         a_t = self.alpha / ttwo
@@ -674,8 +671,7 @@ class LaplaceTransformInversionMethods:
         ctx._de_hoog = deHoog(ctx)
         ctx._cohen = Cohen(ctx)
 
-    def invertlaplace(ctx, f, t, *, method='cohen', tmax=None, degree=None,
-                      r=None, alpha=None, scale=2, tol=None, T=None):
+    def invertlaplace(ctx, f, t, **kwargs):
         r"""Computes the numerical inverse Laplace transform for a
         Laplace-space function at a given time.  The function being
         evaluated is assumed to be a real-valued function of time.
@@ -722,8 +718,7 @@ class LaplaceTransformInversionMethods:
 
         The methods also work for higher precision:
 
-        >>> mp.dps = 100
-        >>> mp.pretty = True
+        >>> mp.dps = 100; mp.pretty = True
         >>> nstr(ft(tt[0]),15),nstr(ft(tt[0])-invertlaplace(fp,tt[0],method='talbot'),15)
         ('0.000999000499833375', '-4.96868310693356e-105')
         >>> nstr(ft(tt[1]),15),nstr(ft(tt[1])-invertlaplace(fp,tt[1],method='talbot'),15)
@@ -737,8 +732,7 @@ class LaplaceTransformInversionMethods:
 
             f(t) = \mathrm{J}_0(t)
 
-        >>> mp.dps = 15
-        >>> mp.pretty = True
+        >>> mp.dps = 15; mp.pretty = True
         >>> fp = lambda p: 1/sqrt(p*p + 1)
         >>> ft = lambda t: besselj(0,t)
         >>> ft(tt[0]),ft(tt[0])-invertlaplace(fp,tt[0],method='dehoog')
@@ -754,8 +748,7 @@ class LaplaceTransformInversionMethods:
 
             f(t) = -\gamma -\log t
 
-        >>> mp.dps = 15
-        >>> mp.pretty = True
+        >>> mp.dps = 15; mp.pretty = True
         >>> fp = lambda p: log(p)/p
         >>> ft = lambda t: -euler-log(t)
         >>> ft(tt[0]),ft(tt[0])-invertlaplace(fp,tt[0],method='stehfest')
@@ -888,8 +881,7 @@ class LaplaceTransformInversionMethods:
 
             f(t)=\frac{1}{3}\sinh 3t
 
-        >>> mp.dps = 15
-        >>> mp.pretty = True
+        >>> mp.dps = 15; mp.pretty = True
         >>> fp = lambda p: 1/(p*p-9)
         >>> ft = lambda t: sinh(3*t)/3
         >>> tt = [0.01,0.1,1.0,10.0]
@@ -905,19 +897,31 @@ class LaplaceTransformInversionMethods:
         **References**
 
         1. [DLMF]_ section 1.14 (http://dlmf.nist.gov/1.14T4)
-        2. [Cohen]_
-        3. [Duffy98]_
+        2. Cohen, A.M. (2007). Numerical Methods for Laplace Transform
+           Inversion, Springer.
+        3. Duffy, D.G. (1998). Advanced Engineering Mathematics, CRC Press.
 
         **Numerical Inverse Laplace Transform Reviews**
 
-        1. [Bellman]_
-        2. [Davies79]_
-        3. [Duffy93]_
-        4. [Kuhlman]_
+        1. Bellman, R., R.E. Kalaba, J.A. Lockett (1966). *Numerical
+           inversion of the Laplace transform: Applications to Biology,
+           Economics, Engineering, and Physics*. Elsevier.
+        2. Davies, B., B. Martin (1979). Numerical inversion of the
+           Laplace transform: a survey and comparison of methods. *Journal
+           of Computational Physics* 33:1-32,
+           http://dx.doi.org/10.1016/0021-9991(79)90025-1
+        3. Duffy, D.G. (1993). On the numerical inversion of Laplace
+           transforms: Comparison of three new methods on characteristic
+           problems from applications. *ACM Transactions on Mathematical
+           Software* 19(3):333-359, http://dx.doi.org/10.1145/155743.155788
+        4. Kuhlman, K.L., (2013). Review of Inverse Laplace Transform
+           Algorithms for Laplace-Space Numerical Approaches, *Numerical
+           Algorithms*, 63(2):339-355.
+           http://dx.doi.org/10.1007/s11075-012-9625-3
 
         """
 
-        rule = method
+        rule = kwargs.get('method', 'cohen')
         if type(rule) is str:
             lrule = rule.lower()
             if lrule == 'talbot':
@@ -933,16 +937,6 @@ class LaplaceTransformInversionMethods:
         else:
             rule = rule(ctx)
 
-        if rule == ctx._fixed_talbot:
-            kwargs = {'tmax': tmax, 'degree': degree, 'r': r}
-        elif rule == ctx._stehfest:
-            kwargs = {'degree': degree}
-        elif rule == ctx._de_hoog:
-            kwargs = {'tmax': tmax, 'degree': degree, 'alpha': alpha,
-                      'scale': scale, 'tol': tol, 'T': T}
-        else:
-            kwargs = {'degree': degree, 'alpha': alpha}
-
         # determine the vector of Laplace-space parameter
         # needed for the requested method and desired time
         rule.calc_laplace_parameter(t, **kwargs)
@@ -956,20 +950,18 @@ class LaplaceTransformInversionMethods:
         return rule.calc_time_domain_solution(fp, t)
 
     # shortcuts for the above function for specific methods
-    def invlaptalbot(ctx, f, t, *, tmax=None, degree=None,
-                     r=None):
-        return ctx.invertlaplace(f, t, method='talbot', tmax=tmax,
-                                 degree=degree, r=r)
+    def invlaptalbot(ctx, *args, **kwargs):
+        kwargs['method'] = 'talbot'
+        return ctx.invertlaplace(*args, **kwargs)
 
-    def invlapstehfest(ctx, f, t, *, degree=None):
-        return ctx.invertlaplace(f, t, method='stehfest', degree=degree)
+    def invlapstehfest(ctx, *args, **kwargs):
+        kwargs['method'] = 'stehfest'
+        return ctx.invertlaplace(*args, **kwargs)
 
-    def invlapdehoog(ctx, f, t, *, tmax=None, degree=None,
-                     alpha=None, scale=2, tol=None, T=None):
-        return ctx.invertlaplace(f, t, method='dehoog', tmax=tmax,
-                                 degree=degree, alpha=alpha, scale=scale,
-                                 tol=tol, T=T)
+    def invlapdehoog(ctx, *args, **kwargs):
+        kwargs['method'] = 'dehoog'
+        return ctx.invertlaplace(*args, **kwargs)
 
-    def invlapcohen(ctx, f, t, *, degree=None, alpha=None):
-        return ctx.invertlaplace(f, t, method='cohen', degree=degree,
-                                 alpha=alpha)
+    def invlapcohen(ctx, *args, **kwargs):
+        kwargs['method'] = 'cohen'
+        return ctx.invertlaplace(*args, **kwargs)

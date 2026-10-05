@@ -87,6 +87,9 @@ class FPContext(StandardBaseContext):
 
     absmin = absmax = abs
 
+    def is_special(ctx, x):
+        return x - x != 0.0
+
     def isnan(ctx, x):
         return x != x
 
@@ -99,10 +102,9 @@ class FPContext(StandardBaseContext):
         return math.isfinite(x)
 
     def isnormal(ctx, x):
-        if type(x) is complex:
-            return ctx.isnormal(abs(x))
-        # XXX: can use math.isnormal() on Python 3.15+
-        return bool(x) and math.isfinite(x) and abs(x) >= sys.float_info.min
+        if x:
+            return x - x == 0.0
+        return False
 
     def isnpint(ctx, x):
         if type(x) is complex:
@@ -161,7 +163,6 @@ class FPContext(StandardBaseContext):
     ldexp = math.ldexp
     frexp = math.frexp
     hypot = math.hypot
-    ulp = math.ulp
 
     def mag(ctx, z):
         if z:
@@ -189,13 +190,11 @@ class FPContext(StandardBaseContext):
     def _convert_param(ctx, z):
         if type(z) is tuple:
             p, q = z
-            return ctx.mpf(p / q), 'R'
+            return ctx.mpf(p) / q, 'R'
         intz = int(z.real)
         if z == intz:
             return intz, 'Z'
-        if not z.imag:
-            return ctx.mpf(z), 'R'
-        return ctx.mpc(z), 'C'
+        return z, 'R'
 
     def _is_real_type(ctx, z):
         return isinstance(z, float) or isinstance(z, int_types)
@@ -236,8 +235,7 @@ class FPContext(StandardBaseContext):
             try:
                 for i in den: t /= (coeffs[i]+k)
             except ZeroDivisionError:
-                assert not t  # poles are handled above
-                return s
+                raise NotImplementedError
             k += 1; t /= k; t *= z; s += t
             if abs(t) < tol:
                 return s

@@ -267,8 +267,8 @@ def qr_step(ctx, n0, n1, A, Q, shift):
                 eigenvalue of the bottemmost part of the submatrix A[n0:n1,n0:n1].
 
     references:
-      [Stoer]_
-      [Kresser]_
+      Stoer, Bulirsch - Introduction to Numerical Analysis.
+      Kresser : Numerical Methods for General and Structured Eigenvalue Problems
     """
 
     # implicitly shifted and bulge chasing is explained at p.398/399 in "Stoer, Bulirsch - Introduction to Numerical Analysis"
@@ -511,9 +511,9 @@ def schur(ctx, A, overwrite_a = False):
       >>> A = mp.matrix([[3, -1, 2], [2, 5, -5], [-2, -3, 7]])
       >>> Q, R = mp.schur(A)
       >>> mp.nprint(R, 3)
-      [2.0  0.417  2.53]
-      [0.0    4.0  4.74]
-      [0.0    0.0   9.0]
+      [2.0  0.417  -2.53]
+      [0.0    4.0  -4.74]
+      [0.0    0.0    9.0]
       >>> print(mp.chop(A - Q * R * Q.transpose_conj()))
       [0.0  0.0  0.0]
       [0.0  0.0  0.0]

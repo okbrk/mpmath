@@ -4,7 +4,7 @@ Root-finding and optimization
 Root-finding (``findroot``)
 ...........................
 
-.. autofunction:: mpmath.findroot
+.. autofunction:: mpmath.findroot(f, x0, solver=Secant, tol=None, verbose=False, verify=True, **kwargs)
 
 Solvers
 ^^^^^^^
@@ -21,5 +21,9 @@ Solvers
 .. autoclass:: mpmath.calculus.optimization.Ridder
 .. autoclass:: mpmath.calculus.optimization.ANewton
 .. autoclass:: mpmath.calculus.optimization.MDNewton
-.. autoclass:: mpmath.calculus.optimization.ModAB
-.. autoclass:: mpmath.calculus.optimization.Brent
+
+
+.. Minimization and maximization (``findmin``, ``findmax``)
+.. ........................................................
+
+.. (To be added.)

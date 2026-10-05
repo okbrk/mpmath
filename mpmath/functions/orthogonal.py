@@ -59,18 +59,11 @@ def _hermite_param(ctx, n, z, parabolic_cylinder):
     return tuple(terms)
 
 @defun
-def hermite(ctx, n, z, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hermite(ctx, n, z, **kwargs):
     return ctx.hypercomb(lambda: _hermite_param(ctx, n, z, 0), [], **kwargs)
 
 @defun
-def pcfd(ctx, n, z, *, eliminate=True, eliminate_all=False,
-         force_series=False, asymp_tol=None, maxprec=None,
-         maxterms=None, zeroprec=None, infprec=None, verbose=False):
+def pcfd(ctx, n, z, **kwargs):
     r"""
     Gives the parabolic cylinder function in Whittaker's notation
     `D_n(z) = U(-n-1/2, z)` (see :func:`~mpmath.pcfu`).
@@ -95,19 +88,14 @@ def pcfd(ctx, n, z, *, eliminate=True, eliminate_all=False,
     **Examples**
 
         >>> from mpmath import mp, pcfd, mpf, chop, diff, taylor
-        >>> mp.dps = 25
-        >>> mp.pretty = True
-        >>> pcfd(0,0)
+        >>> mp.dps = 25; mp.pretty = True
+        >>> pcfd(0,0); pcfd(1,0); pcfd(2,0); pcfd(3,0)
         1.0
-        >>> pcfd(1,0)
         0.0
-        >>> pcfd(2,0)
         -1.0
-        >>> pcfd(3,0)
         0.0
-        >>> pcfd(4,0)
+        >>> pcfd(4,0); pcfd(-3,0)
         3.0
-        >>> pcfd(-3,0)
         0.6266570686577501256039413
         >>> pcfd('1/2', 2+3j)
         (-5.363331161232920734849056 - 3.858877821790010714163487j)
@@ -128,15 +116,10 @@ def pcfd(ctx, n, z, *, eliminate=True, eliminate_all=False,
         [0.0, 15.0, 0.0, -13.75, 0.0, 3.96875, 0.0, -0.6015625]
 
     """
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
     return ctx.hypercomb(lambda: _hermite_param(ctx, n, z, 1), [], **kwargs)
 
 @defun
-def pcfu(ctx, a, z, *, eliminate=True, eliminate_all=False,
-         force_series=False, asymp_tol=None, maxprec=None,
-         maxterms=None, zeroprec=None, infprec=None, verbose=False):
+def pcfu(ctx, a, z, **kwargs):
     r"""
     Gives the parabolic cylinder function `U(a,z)`, which may be
     defined for `\Re(z) > 0` in terms of the confluent
@@ -163,8 +146,7 @@ def pcfu(ctx, a, z, *, eliminate=True, eliminate_all=False,
     Connection to other functions::
 
         >>> from mpmath import mp, mpf, pcfu, sqrt, pi, exp, erfc
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> z = mpf(3)
         >>> pcfu(0.5,z)
         0.03210358129311151450551963
@@ -180,16 +162,11 @@ def pcfu(ctx, a, z, *, eliminate=True, eliminate_all=False,
         23.75012332835297233711255
 
     """
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
     n, _ = ctx._convert_param(a)
-    return ctx.pcfd(-n-MPQ(1,2), z, **kwargs)
+    return ctx.pcfd(-n-MPQ(1,2), z)
 
 @defun
-def pcfv(ctx, a, z, *, eliminate=True, eliminate_all=False,
-         force_series=False, asymp_tol=None, maxprec=None,
-         maxterms=None, zeroprec=None, infprec=None, verbose=False):
+def pcfv(ctx, a, z, **kwargs):
     r"""
     Gives the parabolic cylinder function `V(a,z)`, which can be
     represented in terms of :func:`~mpmath.pcfu` as
@@ -203,8 +180,7 @@ def pcfv(ctx, a, z, *, eliminate=True, eliminate_all=False,
     Wronskian relation between `U` and `V`::
 
         >>> from mpmath import mp, pcfu, diff, pcfv, sqrt, pi, chop
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> a, z = 2, 3
         >>> pcfu(a,z)*diff(pcfv,(a,z),(0,1))-diff(pcfu,(a,z),(0,1))*pcfv(a,z)
         0.7978845608028653558798921
@@ -221,9 +197,6 @@ def pcfv(ctx, a, z, *, eliminate=True, eliminate_all=False,
         0.7978845608028653558798921
 
     """
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
     n, ntype = ctx._convert_param(a)
     z = ctx.convert(z)
     q = MPQ(1,2)
@@ -266,9 +239,7 @@ def pcfv(ctx, a, z, *, eliminate=True, eliminate_all=False,
 
 
 @defun
-def pcfw(ctx, a, z, *, eliminate=True, eliminate_all=False,
-         force_series=False, asymp_tol=None, maxprec=None,
-         maxterms=None, zeroprec=None, infprec=None, verbose=False):
+def pcfw(ctx, a, z, **kwargs):
     r"""
     Gives the parabolic cylinder function `W(a,z)` defined in (DLMF 12.14).
 
@@ -277,8 +248,7 @@ def pcfw(ctx, a, z, *, eliminate=True, eliminate_all=False,
     Value at the origin::
 
         >>> from mpmath import mp, mpf, pcfw, power, gamma, sqrt, diff
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> a = mpf(0.25)
         >>> pcfw(a,0)
         0.9722833245718180765617104
@@ -290,9 +260,6 @@ def pcfw(ctx, a, z, *, eliminate=True, eliminate_all=False,
         -0.5142533944210078966003624
 
     """
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
     n, _ = ctx._convert_param(a)
     z = ctx.convert(z)
     def terms():
@@ -302,8 +269,8 @@ def pcfw(ctx, a, z, *, eliminate=True, eliminate_all=False,
         # XXX: cancellation computing k
         k = ctx.sqrt(1 + ctx.exp(2*ctx.pi*n)) - ctx.exp(ctx.pi*n)
         C = ctx.sqrt(k/2) * ctx.exp(0.25*ctx.pi*n)
-        yield C * ctx.expj(rho) * ctx.pcfu(ctx.j*n, z*ctx.expjpi(-0.25), **kwargs)
-        yield C * ctx.expj(-rho) * ctx.pcfu(-ctx.j*n, z*ctx.expjpi(0.25), **kwargs)
+        yield C * ctx.expj(rho) * ctx.pcfu(ctx.j*n, z*ctx.expjpi(-0.25))
+        yield C * ctx.expj(-rho) * ctx.pcfu(-ctx.j*n, z*ctx.expjpi(0.25))
     v = ctx.sum_accurately(terms)
     if ctx._is_real_type(n) and ctx._is_real_type(z):
         v = ctx._re(v)
@@ -339,17 +306,10 @@ def pcfy2(ctx, a, z, **kwargs):
 """
 
 @defun_wrapped
-def gegenbauer(ctx, n, a, z, *, eliminate=True, eliminate_all=False,
-               force_series=False, asymp_tol=None, maxprec=None,
-               maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def gegenbauer(ctx, n, a, z, **kwargs):
     # Special cases: a+0.5, a*2 poles
     if ctx.isnpint(a):
         return 0*(z+n)
-    if not z and ctx.isint(n) and int(n.real) % 2:
-        return ctx.zero
     if ctx.isnpint(a+0.5):
         # TODO: something else is required here
         # E.g.: gegenbauer(-2, -0.5, 3) == -12
@@ -367,12 +327,7 @@ def gegenbauer(ctx, n, a, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [n], **kwargs)
 
 @defun_wrapped
-def jacobi(ctx, n, a, b, x, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def jacobi(ctx, n, a, b, x, **kwargs):
     if not ctx.isnpint(a):
         def h(n):
             return (([], [], [a+n+1], [n+1, a+1], [-n, a+b+n+1], [a+1], (1-x)*0.5),)
@@ -385,12 +340,7 @@ def jacobi(ctx, n, a, b, x, *, eliminate=True, eliminate_all=False,
     return ctx.binomial(n+a,n) * ctx.hyp2f1(-n,1+n+a+b,a+1,(1-x)/2, **kwargs)
 
 @defun_wrapped
-def laguerre(ctx, n, a, z, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def laguerre(ctx, n, a, z, **kwargs):
     # XXX: limits, poles
     #if ctx.isnpint(n):
     #    return 0*(a+z)
@@ -399,12 +349,7 @@ def laguerre(ctx, n, a, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [a], **kwargs)
 
 @defun_wrapped
-def legendre(ctx, n, x, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def legendre(ctx, n, x, **kwargs):
     if ctx.isint(n):
         n = int(n)
         # Accuracy near zeros
@@ -419,12 +364,7 @@ def legendre(ctx, n, x, *, eliminate=True, eliminate_all=False,
     return ctx.hyp2f1(-n,n+1,1,(1-x)/2, **kwargs)
 
 @defun
-def legenp(ctx, n, m, z, type=2, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def legenp(ctx, n, m, z, type=2, **kwargs):
     # Legendre function, 1st kind
     n = ctx.convert(n)
     m = ctx.convert(m)
@@ -447,12 +387,7 @@ def legenp(ctx, n, m, z, type=2, *, eliminate=True, eliminate_all=False,
     raise ValueError("requires type=2 or type=3")
 
 @defun
-def legenq(ctx, n, m, z, type=2, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def legenq(ctx, n, m, z, type=2, **kwargs):
     # Legendre function, 2nd kind
     n = ctx.convert(n)
     m = ctx.convert(m)
@@ -506,34 +441,23 @@ def legenq(ctx, n, m, z, type=2, *, eliminate=True, eliminate_all=False,
     raise ValueError("requires type=2 or type=3")
 
 @defun_wrapped
-def chebyt(ctx, n, x, *, eliminate=True, eliminate_all=False,
-           force_series=True, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def chebyt(ctx, n, x, **kwargs):
     if (not x) and ctx.isint(n) and int(ctx._re(n)) % 2 == 1:
         return x * 0
+    if kwargs.get('force_series') is None:
+        kwargs['force_series'] = True
     return ctx.hyp2f1(-n,n,(1,2),(1-x)/2, **kwargs)
 
 @defun_wrapped
-def chebyu(ctx, n, x, *, eliminate=True, eliminate_all=False,
-           force_series=True, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def chebyu(ctx, n, x, **kwargs):
     if (not x) and ctx.isint(n) and int(ctx._re(n)) % 2 == 1:
         return x * 0
+    if kwargs.get('force_series') is None:
+        kwargs['force_series'] = True
     return (n+1) * ctx.hyp2f1(-n, n+2, (3,2), (1-x)/2, **kwargs)
 
 @defun
-def spherharm(ctx, l, m, theta, phi, *, eliminate=True, eliminate_all=False,
-              force_series=False, asymp_tol=None, maxprec=None,
-              maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def spherharm(ctx, l, m, theta, phi, **kwargs):
     l = ctx.convert(l)
     m = ctx.convert(m)
     theta = ctx.convert(theta)

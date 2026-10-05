@@ -1,61 +1,69 @@
 import pytest
-from hypothesis import given, settings
-from hypothesis import strategies as st
 
-from mpmath import (arange, chebyfit, cos, cosm, differint, e, euler, exp,
-                    expm, fft, fourier, fourierval, inf, invertlaplace, invfft,
-                    j, limit, log, logm, matrix, mp, mpf, norm, pade, pi,
-                    polyroots, polyval, sin, sinm, sqrt, libmp)
+from mpmath import (arange, chebyfit, cos, differint, e, euler, exp, fourier,
+                    fourierval, inf, invertlaplace, j, limit, log, matrix, mp,
+                    mpf, pade, pi, polyroots, polyval, sin, sqrt)
 
 
 def test_approximation():
     f = lambda x: cos(2-2*x)/x
-    p, err = chebyfit(f, [2, 4], 8, error=True)
+    p, err = chebyfit(f, [2, 4], 8, error=True, asc=True)
     assert err < 1e-5
     for i in range(10):
         x = 2 + i/5.
-        assert abs(polyval(p, x) - f(x)) < err
+        assert abs(polyval(p, x, asc=True) - f(x)) < err
 
-def test_chebyfit():
+def test_chebyfit_deprecated():
     f = lambda x: cos(2-2*x)/x
-    p, err = chebyfit(f, [2, 4], 8, error=True, asc=False)
+    with pytest.deprecated_call():
+        p, err = chebyfit(f, [2, 4], 8, error=True)
     assert err < 1e-5
     p = p[::-1]
     for i in range(10):
         x = 2 + i/5.
-        assert abs(polyval(p, x) - f(x)) < err
-
-def test_chebyfit_nonpositive_N():
-    with pytest.raises(ValueError):
-        chebyfit(sin, [-1, 1], 0)
+        assert abs(polyval(p, x, asc=True) - f(x)) < err
 
 def test_limits():
     assert limit(lambda x: (x-sin(x))/x**3, 0).ae(mpf(1)/6)
     assert limit(lambda n: (1+1/n)**n, inf).ae(e)
 
 def test_polyval():
-    assert polyval([], 3) == 0
-    assert polyval([0], 3) == 0
-    assert polyval([5], 3) == 5
+    assert polyval([], 3, asc=True) == 0
+    assert polyval([0], 3, asc=True) == 0
+    assert polyval([5], 3, asc=True) == 5
     # 4x^3 - 2x + 5
     p = [5, -2, 0, 4]
-    assert polyval(p, 4) == 253
-    assert polyval(p, 4, derivative=True) == (253, 190)
+    assert polyval(p,4,asc=True) == 253
+    assert polyval(p,4,derivative=True,asc=True) == (253, 190)
+
+def test_polyval_asc_false():
     assert polyval([1, 2, 3], 2, asc=False) == 11
-    assert polyval(list(reversed(p)), 4, asc=False) == 253
+
+def test_polyval_deprecated():
+    with pytest.deprecated_call():
+        p = [4, 0, -2, 5]
+        assert polyval(p,4) == 253
 
 def test_polyroots():
-    p = polyroots([-4,1])
+    p = polyroots([-4,1], asc=True)
     assert p[0].ae(4)
-    p, q = polyroots([3,2,1])
+    p, q = polyroots([3,2,1], asc=True)
     assert p.ae(-1 - sqrt(2)*j)
     assert q.ae(-1 + sqrt(2)*j)
     #this is not a real test, it only tests a specific case
-    assert polyroots([1]) == []
-    pytest.raises(ValueError, lambda: polyroots([0]))
+    assert polyroots([1], asc=True) == []
+    pytest.raises(ValueError, lambda: polyroots([0], asc=True))
+
+def test_polyroots_asc_false():
     p, q = polyroots([1,2,3], asc=False)
     assert p.ae(-1 - sqrt(2)*j)
     assert q.ae(-1 + sqrt(2)*j)
+
+def test_polyroots_deprecated():
+    with pytest.deprecated_call():
+        p, q = polyroots([1,2,3])
+        assert p.ae(-1 - sqrt(2)*j)
+        assert q.ae(-1 + sqrt(2)*j)
 
 def test_polyroots_legendre():
     n = 64
@@ -93,10 +101,10 @@ def test_polyroots_legendre():
     with mp.workdps(3):
         with pytest.raises(mp.NoConvergence):
             polyroots(coeffs, maxsteps=5, cleanup=True, error=False,
-                      extraprec=n*10)
+                      extraprec=n*10, asc=True)
 
         roots = polyroots(coeffs, maxsteps=50, cleanup=True, error=False,
-                          extraprec=n*10)
+                          extraprec=n*10, asc=True)
         roots = [str(r) for r in roots]
         assert roots == \
             ['-0.999', '-0.996', '-0.991', '-0.983', '-0.973', '-0.961',
@@ -158,15 +166,16 @@ def test_polyroots_legendre_init():
                           '0.983',   '0.991',   '0.996',  '0.999',  '1.0'])
     with mp.workdps(2*mp.dps):
         roots_exact = polyroots(coeffs, maxsteps=50, cleanup=True, error=False,
-                                extraprec=2*extra_prec)
+                                extraprec=2*extra_prec, asc=True)
     with pytest.raises(mp.NoConvergence):
         polyroots(coeffs, maxsteps=5, cleanup=True, error=False,
-                  extraprec=extra_prec)
+                  extraprec=extra_prec, asc=True)
     roots,err = polyroots(coeffs, maxsteps=5, cleanup=True, error=True,
-                          extraprec=extra_prec,roots_init=roots_init)
+                          extraprec=extra_prec,roots_init=roots_init, asc=True)
     assert max(matrix(roots_exact)-matrix(roots).apply(abs)) < err
     roots1,err1 = polyroots(coeffs, maxsteps=25, cleanup=True, error=True,
-                            extraprec=extra_prec,roots_init=roots_init[:60])
+                            extraprec=extra_prec,roots_init=roots_init[:60],
+                            asc=True)
     assert max(matrix(roots_exact)-matrix(roots1).apply(abs)) < err1
 
 def test_pade():
@@ -180,7 +189,7 @@ def test_pade():
         a.append(one/k)
     p, q = pade(a, N//2, N//2)
     for x in arange(0, 1, 0.1):
-        r = polyval(p, x)/polyval(q, x)
+        r = polyval(p, x, asc=True)/polyval(q, x, asc=True)
         assert r.ae(exp(x), 1.0e-10)
 
 def test_fourier():
@@ -203,17 +212,9 @@ def test_invlap():
     ft = lambda t: t*exp(-t)
     ftt = ft(t)
     assert invertlaplace(fp,t,method='talbot').ae(ftt)
-    assert mp.invlaptalbot(fp, t).ae(ftt)
-    assert invertlaplace(fp,t,method='talbot', degree=35).ae(ftt)
     assert invertlaplace(fp,t,method='stehfest').ae(ftt)
-    assert mp.invlapstehfest(fp, t).ae(ftt)
-    assert invertlaplace(fp,t,method='stehfest', degree=45).ae(ftt)
     assert invertlaplace(fp,t,method='dehoog').ae(ftt)
-    assert mp.invlapdehoog(fp, t).ae(ftt)
-    assert invertlaplace(fp,t,method='dehoog', degree=20).ae(ftt)
     assert invertlaplace(fp,t,method='cohen').ae(ftt)
-    assert mp.invlapcohen(fp, t).ae(ftt)
-    assert invertlaplace(fp,t,method='cohen', degree=50).ae(ftt)
     t = 1.0
     ftt = ft(t)
     assert invertlaplace(fp,t,method='talbot').ae(ftt)
@@ -235,123 +236,3 @@ def test_invlap():
     assert invertlaplace(fp,t,method='stehfest').ae(ftt)
     assert invertlaplace(fp,t,method='dehoog').ae(ftt)
     assert invertlaplace(fp,t,method='cohen').ae(ftt)
-
-def test_expm():
-    #  Simple tests with known exact results
-    A = matrix([[2, 0], [0, 1]])
-    A = expm(A)
-    B = matrix([[e**2, 0], [0, e]])
-    assert norm(A-B, inf) < 1e-15
-
-    A = matrix([[0, -pi], [pi, 0]])
-    A = expm(A)
-    B = matrix([[-1, 0], [0, -1]])
-    assert norm(A-B, inf) < 1e-15
-
-    # Test with input as list of lists
-    A = [[1, 0], [0, 2]]
-    A = expm(A)
-    B = matrix([[e, 0], [0, e**2]])
-    assert norm(A-B, inf) < 1e-15
-
-    # Test non-square matrix input
-    A = [[1, 0], [0, 1], [0, 0]]
-    pytest.raises(ValueError, lambda: expm(A))
-
-def test_cosm_sinm():
-    # Simple test with known exact result
-    A = matrix([[-pi, 0], [0, pi]])
-    C = cosm(A)
-    S = sinm(A)
-    C_exact = matrix([[cos(-pi), 0], [0, cos(pi)]])
-    S_exact = matrix([[0, 0], [0, 0]])
-    assert norm(C-C_exact, inf) < 1e-15
-    assert norm(S-S_exact, inf) < 1e-15
-
-    # Test with input as list of lists
-    A = [[-pi, 0], [0, pi]]
-    C = cosm(A)
-    S = sinm(A)
-    C_exact = matrix([[cos(-pi), 0], [0, cos(pi)]])
-    S_exact = matrix([[0, 0], [0, 0]])
-    assert norm(C-C_exact, inf) < 1e-15
-    assert norm(S-S_exact, inf) < 1e-15
-
-    # Test non-square matrix input
-    A = [[1, 0], [0, 1], [0, 0]]
-    pytest.raises(ValueError, lambda: cosm(A))
-    pytest.raises(ValueError, lambda: sinm(A))
-
-def test_logm():
-    # Test for zero matrix
-    A = [[0, 0], [0, 0]]
-    pytest.raises(ValueError, lambda: logm(A))
-
-def test_fft():
-    assert fft([]) == []
-    assert fft([1]) == [1]
-    assert fft([1, 0, 0, 0]) == [1, 1, 1, 1]
-
-    x = [1, 2+2j, 2, 3+3j, 3]
-    omega = mp.expjpi(-2 / len(x))
-    expected = [sum(x[n] * omega ** (n * k) for n in range(len(x))) for k in range(len(x))]
-    spectrum = fft(x)
-    assert all(a.ae(b, abs_eps=1e-14) for a, b in zip(spectrum, expected))
-    assert all(a.ae(b) for a, b in zip(invfft(spectrum), x))
-
-    spectrum = fft([0, 1, 0, 0])
-    expected = [1, -1j, -1, 1j]
-    assert all(a.ae(b) for a, b in zip(spectrum, expected))
-
-    spectrum = fft([1, 2, 3, 4])
-    expected = [10, -2 + 2j, -2, -2 - 2j]
-    assert all(a.ae(b) for a, b in zip(spectrum, expected))
-    assert mp.chop(invfft(spectrum)) == [1, 2, 3, 4]
-
-    spectrum = fft([1, j, -1, -j])
-    expected = [0, 4, 0, 0]
-    assert all(a.ae(b) for a, b in zip(spectrum, expected))
-
-    x = invfft([4, 1 - 1j, 0, 1 + 1j])
-    expected = [1.5, 1.5, 0.5, 0.5]
-    assert all(a.ae(b) for a, b in zip(x, expected))
-
-    assert invfft([]) == []
-
-    # test parseval's theorem
-    x = [0.25 + 2.0j, -0.5, 0.75 - 1.0j, -1.0 - 8.0j, 0.5, 0.125 + 0.65j, -0.75, 1.25 + 2.5j]
-    X = fft(x)
-    time_energy = sum(abs(complex(v)) ** 2 for v in x)
-    freq_energy = sum(abs(complex(v)) ** 2 for v in X) / 8
-    assert abs(time_energy - freq_energy) < 1e-12
-
-    x = [0.25 + 2.0j, -0.5, 0.75 - 1.0j, -1.0 - 8.0j, 0.5, 0.125 + 0.65j, -0.75, 1.25 + 2.5j, -0.25 - 1.0j, 0.5]
-    X = fft(x)
-    time_energy = sum(abs(complex(v)) ** 2 for v in x)
-    freq_energy = sum(abs(complex(v)) ** 2 for v in X) / 10
-    assert abs(time_energy - freq_energy) < 1e-12
-
-@st.composite
-def signals(draw):
-    size = draw(st.sampled_from([1, 2, 3, 4, 7, 8, 9, 13, 16, 25]))
-    return draw(st.lists(
-        st.complex_numbers(
-            min_magnitude=0,
-            max_magnitude=10,
-            allow_nan=False,
-            allow_infinity=False,
-        ),
-        min_size=size,
-        max_size=size,
-    ))
-
-@pytest.mark.timeout(1000)  # enormously slow on PyPy with gmp
-@settings(deadline=None)
-@given(x=signals())
-def test_fft_randomized_complex(x):
-    # test that fft and invfft are inverses of each other for random complex inputs
-    recovered = invfft(fft(x))
-    assert all(a.ae(b) for a, b in zip(recovered, x))
-
-    recovered = fft(invfft(x))
-    assert all(a.ae(b) for a, b in zip(recovered, x))

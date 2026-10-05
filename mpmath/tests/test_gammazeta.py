@@ -7,8 +7,7 @@ from mpmath import (altzeta, apery, barnesg, bell, bernfrac, bernoulli,
                     j, log, loggamma, mp, mpc, mpf, mpmathify, nan, pi,
                     polyexp, polylog, primezeta, psi, rf, rgamma, sech,
                     secondzeta, siegelz, sinc, sqrt, stieltjes, superfac, zeta)
-from mpmath.libmp import from_float, round_up
-from mpmath.libmp.gammazeta import mpf_zeta_int
+from mpmath.libmp import from_float, mpf_zeta_int, round_up
 
 
 def test_zeta_int_bug():
@@ -42,7 +41,6 @@ def test_bernoulli(plus):
     assert bernoulli(5, plus) == 0
     assert bernoulli(6, plus).ae(1./42)
     assert str(bernoulli(10, plus)) == '0.0757575757575758'
-    assert repr(bernoulli(10, plus)) == "mpf('0.07575757575757576')"
     assert str(bernoulli(234, plus)) == '7.62772793964344e+267'
     assert str(bernoulli(10**5, plus)) == '-5.82229431461335e+376755'
     assert str(bernoulli(10**8+2, plus)) == '1.19570355039953e+676752584'
@@ -388,8 +386,6 @@ def test_polygamma():
     # issue #647
     mp.prec = 42
     assert digamma(-0.5+0.5j).ae(mpc('0.131892637354523', '2.44065951997751'))
-    mp.prec = 53
-    assert digamma(1e300+1j).ae(690.77552789821368)
 
 def test_polygamma_high_prec():
     mp.dps = 100

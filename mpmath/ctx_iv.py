@@ -2,17 +2,15 @@ import inspect
 import numbers
 import sys
 
-from . import function_docs, libmp
+from . import function_docs
+from . import libmp
 from .libmp import (MPZ_ONE, ComplexResult, dps_to_prec, finf, fnan, fninf,
-                    from_float, from_int, from_str, fzero, int_types, mpf_le,
-                    mpf_neg, prec_to_dps, repr_dps, round_ceiling, round_floor,
-                    round_nearest)
-from .libmp.libmpc import mpc_hash
-from .libmp.libmpf import mpf_hash, mpf_pos
-from .libmp.libmpi import (mpci_abs, mpci_add, mpci_div, mpci_mul, mpci_neg,
-                           mpci_pos, mpci_pow, mpci_sub, mpi_abs, mpi_add,
-                           mpi_delta, mpi_div, mpi_from_str, mpi_mid, mpi_mul,
-                           mpi_neg, mpi_pos, mpi_pow, mpi_str, mpi_sub)
+                    from_float, from_int, from_str, fzero, int_types, mpc_hash,
+                    mpci_abs, mpci_add, mpci_div, mpci_mul, mpci_neg, mpci_pos,
+                    mpci_pow, mpci_sub, mpf_hash, mpf_le, mpf_neg, mpf_pos,
+                    mpi_abs, mpi_add, mpi_delta, mpi_div, mpi_from_str,
+                    mpi_mid, mpi_mul, mpi_neg, mpi_pos, mpi_pow, mpi_str,
+                    mpi_sub, prec_to_dps, repr_dps, round_ceiling, round_floor)
 from .matrices.matrices import _matrix
 
 
@@ -136,12 +134,12 @@ class ivmpf:
                 return NotImplemented
         return cmpfun(s._mpi_, t._mpi_)
 
-    def __eq__(s, t): return s._compare(t, libmp.libmpi.mpi_eq)
-    def __ne__(s, t): return s._compare(t, libmp.libmpi.mpi_ne)
-    def __lt__(s, t): return s._compare(t, libmp.libmpi.mpi_lt)
-    def __le__(s, t): return s._compare(t, libmp.libmpi.mpi_le)
-    def __gt__(s, t): return s._compare(t, libmp.libmpi.mpi_gt)
-    def __ge__(s, t): return s._compare(t, libmp.libmpi.mpi_ge)
+    def __eq__(s, t): return s._compare(t, libmp.mpi_eq)
+    def __ne__(s, t): return s._compare(t, libmp.mpi_ne)
+    def __lt__(s, t): return s._compare(t, libmp.mpi_lt)
+    def __le__(s, t): return s._compare(t, libmp.mpi_le)
+    def __gt__(s, t): return s._compare(t, libmp.mpi_gt)
+    def __ge__(s, t): return s._compare(t, libmp.mpi_ge)
 
     def __abs__(self):
         return self.ctx.make_mpf(mpi_abs(self._mpi_, self.ctx.prec))
@@ -331,29 +329,29 @@ class MPIntervalContext(StandardBaseContext):
         ctx.ninf = -ctx.inf
         ctx.nan = ctx.mpf('nan')
         ctx.j = ctx.mpc(0,1)
-        ctx.exp = ctx._wrap_mpi_function(libmp.libmpi.mpi_exp, libmp.libmpi.mpci_exp)
-        ctx.sqrt = ctx._wrap_mpi_function(libmp.libmpi.mpi_sqrt)
-        ctx.ln = ctx._wrap_mpi_function(libmp.libmpi.mpi_log, libmp.libmpi.mpci_log)
-        ctx.cos = ctx._wrap_mpi_function(libmp.libmpi.mpi_cos, libmp.libmpi.mpci_cos)
-        ctx.sin = ctx._wrap_mpi_function(libmp.libmpi.mpi_sin, libmp.libmpi.mpci_sin)
-        ctx.tan = ctx._wrap_mpi_function(libmp.libmpi.mpi_tan)
-        ctx.gamma = ctx._wrap_mpi_function(libmp.libmpi.mpi_gamma, libmp.libmpi.mpci_gamma)
-        ctx.loggamma = ctx._wrap_mpi_function(libmp.libmpi.mpi_loggamma, libmp.libmpi.mpci_loggamma)
-        ctx.rgamma = ctx._wrap_mpi_function(libmp.libmpi.mpi_rgamma, libmp.libmpi.mpci_rgamma)
-        ctx.factorial = ctx._wrap_mpi_function(libmp.libmpi.mpi_factorial, libmp.libmpi.mpci_factorial)
+        ctx.exp = ctx._wrap_mpi_function(libmp.mpi_exp, libmp.mpci_exp)
+        ctx.sqrt = ctx._wrap_mpi_function(libmp.mpi_sqrt)
+        ctx.ln = ctx._wrap_mpi_function(libmp.mpi_log, libmp.mpci_log)
+        ctx.cos = ctx._wrap_mpi_function(libmp.mpi_cos, libmp.mpci_cos)
+        ctx.sin = ctx._wrap_mpi_function(libmp.mpi_sin, libmp.mpci_sin)
+        ctx.tan = ctx._wrap_mpi_function(libmp.mpi_tan)
+        ctx.gamma = ctx._wrap_mpi_function(libmp.mpi_gamma, libmp.mpci_gamma)
+        ctx.loggamma = ctx._wrap_mpi_function(libmp.mpi_loggamma, libmp.mpci_loggamma)
+        ctx.rgamma = ctx._wrap_mpi_function(libmp.mpi_rgamma, libmp.mpci_rgamma)
+        ctx.factorial = ctx._wrap_mpi_function(libmp.mpi_factorial, libmp.mpci_factorial)
         ctx.fac = ctx.factorial
 
         ctx.eps = ctx._constant(lambda prec, rnd: (0, MPZ_ONE, 1-prec, 1))
         ctx.pi = ctx._constant(libmp.mpf_pi)
         ctx.e = ctx._constant(libmp.mpf_e)
-        ctx.ln2 = ctx._constant(libmp.libelefun.mpf_ln2)
-        ctx.ln10 = ctx._constant(libmp.libelefun.mpf_ln10)
-        ctx.phi = ctx._constant(libmp.libelefun.mpf_phi)
-        ctx.euler = ctx._constant(libmp.gammazeta.mpf_euler)
-        ctx.catalan = ctx._constant(libmp.gammazeta.mpf_catalan)
-        ctx.glaisher = ctx._constant(libmp.gammazeta.mpf_glaisher)
-        ctx.khinchin = ctx._constant(libmp.gammazeta.mpf_khinchin)
-        ctx.twinprime = ctx._constant(libmp.gammazeta.mpf_twinprime)
+        ctx.ln2 = ctx._constant(libmp.mpf_ln2)
+        ctx.ln10 = ctx._constant(libmp.mpf_ln10)
+        ctx.phi = ctx._constant(libmp.mpf_phi)
+        ctx.euler = ctx._constant(libmp.mpf_euler)
+        ctx.catalan = ctx._constant(libmp.mpf_catalan)
+        ctx.glaisher = ctx._constant(libmp.mpf_glaisher)
+        ctx.khinchin = ctx._constant(libmp.mpf_khinchin)
+        ctx.twinprime = ctx._constant(libmp.mpf_twinprime)
 
     def _wrap_mpi_function(ctx, f_real, f_complex=None):
         def g(x, **kwargs):
@@ -443,29 +441,20 @@ class MPIntervalContext(StandardBaseContext):
         assert mpf_le(a, b), "endpoints must be properly ordered"
         return ctx.make_mpf((a, b))
 
-    def nstr(ctx, x, n=5, *, strip_zeros=True, min_fixed=None, max_fixed=None,
-             show_zero_exponent=False, base=10, binary_exp=False,
-             rnd=round_nearest, mode='brackets', use_spaces=True,
-             brackets='[]', error_dps=4):
+    def nstr(ctx, x, n=5, **kwargs):
         x = ctx.convert(x)
-        kwargs = {'strip_zeros': strip_zeros, 'min_fixed': min_fixed,
-                  'max_fixed': max_fixed, 'show_zero_exponent': show_zero_exponent,
-                  'base': base, 'binary_exp': binary_exp,
-                  'rnd': rnd, 'use_spaces': use_spaces,
-                  'brackets': brackets, 'mode': mode,
-                  'error_dps': error_dps}
         if hasattr(x, "_mpi_"):
-            return libmp.libmpi.mpi_to_str(x._mpi_, n, **kwargs)
+            return libmp.mpi_to_str(x._mpi_, n, **kwargs)
         if hasattr(x, "_mpci_"):
-            re = libmp.libmpi.mpi_to_str(x._mpci_[0], n, **kwargs)
-            im = libmp.libmpi.mpi_to_str(x._mpci_[1], n, **kwargs)
+            re = libmp.mpi_to_str(x._mpci_[0], n, **kwargs)
+            im = libmp.mpi_to_str(x._mpci_[1], n, **kwargs)
             return "(%s + %s*j)" % (re, im)
 
     def mag(ctx, x):
         x = ctx.convert(x)
         if isinstance(x, ctx.mpc):
             return max(ctx.mag(x.real), ctx.mag(x.imag)) + 1
-        a, b = libmp.libmpi.mpi_abs(x._mpi_)
+        a, b = libmp.mpi_abs(x._mpi_)
         sign, man, exp, bc = b
         if man:
             return exp+bc
@@ -506,7 +495,7 @@ class MPIntervalContext(StandardBaseContext):
     def atan2(ctx, y, x):
         y = ctx.convert(y)._mpi_
         x = ctx.convert(x)._mpi_
-        return ctx.make_mpf(libmp.libmpi.mpi_atan2(y,x,ctx.prec))
+        return ctx.make_mpf(libmp.mpi_atan2(y,x,ctx.prec))
 
     def _convert_param(ctx, x):
         if isinstance(x, libmp.int_types):

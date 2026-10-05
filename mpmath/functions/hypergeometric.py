@@ -1,6 +1,5 @@
 from ..libmp.backend import MPQ
 from .functions import defun, defun_wrapped
-import math
 
 def _check_need_perturb(ctx, terms, prec, discard_known_zeros):
     perturb = recompute = False
@@ -49,26 +48,6 @@ def _check_need_perturb(ctx, terms, prec, discard_known_zeros):
             perturb = recompute = True
     return perturb, recompute, extraprec, discard
 
-@defun
-def _set_hyper_kwargs(ctx, eliminate, eliminate_all,
-                      force_series, asymp_tol, maxprec,
-                      maxterms, zeroprec, infprec, verbose):
-    if asymp_tol is None:
-        asymp_tol = ctx.eps/4
-    if maxprec is None:
-        maxprec = ctx._default_hyper_maxprec(ctx.prec)
-    kwargs = dict(eliminate=eliminate, eliminate_all=eliminate_all,
-                  force_series=force_series, asymp_tol=asymp_tol,
-                  maxprec=maxprec, verbose=verbose)
-    if zeroprec:
-        kwargs['zeroprec'] = zeroprec
-    if infprec:
-        kwargs['infprec'] = infprec
-    if maxterms:
-        kwargs['maxterms'] = maxterms
-
-    return kwargs
-
 _hypercomb_msg = """
 hypercomb() failed to converge to the requested %i bits of accuracy
 using a working precision of %i bits. The function value may be zero or
@@ -77,13 +56,7 @@ infinite; try passing zeroprec=N or infprec=M to bound finite values between
 """
 
 @defun
-def hypercomb(ctx, function, params=[], discard_known_zeros=True,
-              *, eliminate=True, eliminate_all=False,
-              force_series=False, asymp_tol=None, maxprec=None,
-              maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hypercomb(ctx, function, params=[], discard_known_zeros=True, **kwargs):
     orig = ctx.prec
     sumvalue = ctx.zero
     dist = ctx.nint_distance
@@ -219,15 +192,10 @@ def hypercomb(ctx, function, params=[], discard_known_zeros=True,
     return +sumvalue
 
 @defun
-def hyper(ctx, a_s, b_s, z, *, eliminate=True, eliminate_all=False,
-          force_series=False, asymp_tol=None, maxprec=None,
-          maxterms=None, zeroprec=None, infprec=None, verbose=False):
+def hyper(ctx, a_s, b_s, z, **kwargs):
     """
     Hypergeometric function, general case.
     """
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
     z = ctx.convert(z)
     if ctx.isnan(z):
         return ctx.nan
@@ -236,11 +204,12 @@ def hyper(ctx, a_s, b_s, z, *, eliminate=True, eliminate_all=False,
     a_s = [ctx._convert_param(a) for a in a_s]
     b_s = [ctx._convert_param(b) for b in b_s]
     # Reduce degree by eliminating common parameters
-    if eliminate:
+    if kwargs.get('eliminate', True):
+        elim_nonpositive = kwargs.get('eliminate_all', False)
         i = 0
         while i < q and a_s:
             b = b_s[i]
-            if b in a_s and (eliminate_all or not ctx.isnpint(b[0])):
+            if b in a_s and (elim_nonpositive or not ctx.isnpint(b[0])):
                 a_s.remove(b)
                 b_s.remove(b)
                 p -= 1
@@ -262,81 +231,41 @@ def hyper(ctx, a_s, b_s, z, *, eliminate=True, eliminate_all=False,
         elif q == 0: return ctx._hyp2f0(a_s, b_s, z, **kwargs)
     elif p == q+1:
         return ctx._hypq1fq(p, q, a_s, b_s, z, **kwargs)
-    elif p > q+1 and not force_series:
+    elif p > q+1 and not kwargs.get('force_series'):
         return ctx._hyp_borel(p, q, a_s, b_s, z, **kwargs)
     coeffs, types = zip(*(a_s+b_s))
     return ctx.hypsum(p, q, types, coeffs, z, **kwargs)
 
 @defun
-def hyp0f1(ctx, b, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyp0f1(ctx,b,z,**kwargs):
     return ctx.hyper([],[b],z,**kwargs)
 
 @defun
-def hyp1f1(ctx, a, b, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyp1f1(ctx,a,b,z,**kwargs):
     return ctx.hyper([a],[b],z,**kwargs)
 
 @defun
-def hyp1f2(ctx, a1, b1, b2, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyp1f2(ctx,a1,b1,b2,z,**kwargs):
     return ctx.hyper([a1],[b1,b2],z,**kwargs)
 
 @defun
-def hyp2f1(ctx, a, b, c, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyp2f1(ctx,a,b,c,z,**kwargs):
     return ctx.hyper([a,b],[c],z,**kwargs)
 
 @defun
-def hyp2f2(ctx, a1, a2, b1, b2, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyp2f2(ctx,a1,a2,b1,b2,z,**kwargs):
     return ctx.hyper([a1,a2],[b1,b2],z,**kwargs)
 
 @defun
-def hyp2f3(ctx, a1, a2, b1, b2, b3, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyp2f3(ctx,a1,a2,b1,b2,b3,z,**kwargs):
     return ctx.hyper([a1,a2],[b1,b2,b3],z,**kwargs)
 
 @defun
-def hyp2f0(ctx, a, b, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyp2f0(ctx,a,b,z,**kwargs):
     return ctx.hyper([a,b],[],z,**kwargs)
 
 @defun
-def hyp3f2(ctx, a1, a2, a3, b1, b2, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyp3f2(ctx,a1,a2,a3,b1,b2,z,**kwargs):
     return ctx.hyper([a1,a2,a3],[b1,b2],z,**kwargs)
 
 @defun_wrapped
@@ -386,7 +315,7 @@ def _hyp1f1(ctx, a_s, b_s, z, **kwargs):
     if not z:
         return ctx.one+z
     magz = ctx.mag(z)
-    if magz >= 7 and not ctx.isnpint(a):
+    if magz >= 7 and not (ctx.isint(a) and ctx.re(a) <= 0):
         if ctx.isinf(z) and ctx.sign(a) == ctx.sign(b) == ctx.sign(z) == 1:
             return ctx.inf
         if ctx.isinf(magz):
@@ -476,9 +405,9 @@ def _hyp2f1(ctx, a_s, b_s, z, **kwargs):
     if z == 1:
         # TODO: the following logic can be simplified
         convergent = ctx.re(c-a-b) > 0
-        finite = ctx.isnpint(a) or ctx.isnpint(b)
-        zerodiv = ctx.isnpint(c) and not \
-            ((ctx.isnpint(a) and c <= a) or (ctx.isnpint(b) and c <= b))
+        finite = (ctx.isint(a) and a <= 0) or (ctx.isint(b) and b <= 0)
+        zerodiv = ctx.isint(c) and c <= 0 and not \
+            ((ctx.isint(a) and c <= a <= 0) or (ctx.isint(b) and c <= b <= 0))
         #print "bz", a, b, c, z, convergent, finite, zerodiv
         # Gauss's theorem gives the value if convergent
         if (convergent or finite) and not zerodiv:
@@ -499,8 +428,9 @@ def _hyp2f1(ctx, a_s, b_s, z, **kwargs):
         return ctx.nan
 
     # Hit zero denominator unless numerator goes to 0 first
-    if ctx.isnpint(c):
-        if (ctx.isnpint(a) and c <= a) or (ctx.isnpint(b) and c <= b):
+    if ctx.isint(c) and c <= 0:
+        if (ctx.isint(a) and c <= a <= 0) or \
+           (ctx.isint(b) and c <= b <= 0):
             pass
         else:
             # Pole in series
@@ -511,8 +441,8 @@ def _hyp2f1(ctx, a_s, b_s, z, **kwargs):
     # Fast case: standard series converges rapidly,
     # possibly in finitely many terms
     if ctx.isfinite(z) and (absz <= 0.8 or
-                            (ctx.isnpint(a) and -1000 <= a) or
-                            (ctx.isnpint(b) and -1000 <= b)):
+                            (ctx.isint(a) and -1000 <= a <= 0) or
+                            (ctx.isint(b) and -1000 <= b <= 0)):
         try:
             return ctx.hypsum(2, 1, (atype, btype, ctype), [a, b, c], z, **kwargs)
         except ctx.NoConvergence:
@@ -565,7 +495,7 @@ def _hypq1fq(ctx, p, q, a_s, b_s, z, **kwargs):
     absz = abs(z)
     ispoly = False
     for a in a_s:
-        if ctx.isnpint(a):
+        if ctx.isint(a) and a <= 0:
             ispoly = True
             break
     # Direct summation
@@ -576,7 +506,9 @@ def _hypq1fq(ctx, p, q, a_s, b_s, z, **kwargs):
             if absz > 1.1 or ispoly:
                 raise
     # Use expansion at |z-1| -> 0.
-    # Reference: [Buhring]_
+    # Reference: Wolfgang Buhring, "Generalized Hypergeometric Functions at
+    #   Unit Argument", Proc. Amer. Math. Soc., Vol. 114, No. 1 (Jan. 1992),
+    #   pp.145-153
     # The current implementation has several problems:
     # 1. We only implement it for 3F2. The expansion coefficients are
     #    given by extremely messy nested sums in the higher degree cases
@@ -1071,13 +1003,7 @@ def _hyp2f0(ctx, a_s, b_s, z, **kwargs):
     return ctx.hypercomb(h, [a, 1+a-b], **kwargs)
 
 @defun
-def meijerg(ctx, a_s, b_s, z, r=1, series=None, *, eliminate=True,
-            eliminate_all=False, force_series=False, asymp_tol=None,
-            maxprec=None, maxterms=None, zeroprec=None, infprec=None,
-            verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def meijerg(ctx, a_s, b_s, z, r=1, series=None, **kwargs):
     an, ap = a_s
     bm, bq = b_s
     n = len(an)
@@ -1097,7 +1023,7 @@ def meijerg(ctx, a_s, b_s, z, r=1, series=None, *, eliminate=True,
                 series = 2
             else:
                 series = 1
-    if verbose:
+    if kwargs.get('verbose'):
         print("Meijer G m,n,p,q,series =", m,n,p,q,series)
     if series == 1:
         def h(*args):
@@ -1138,93 +1064,8 @@ def meijerg(ctx, a_s, b_s, z, r=1, series=None, *, eliminate=True,
             return terms
     return ctx.hypercomb(h, a+b, **kwargs)
 
-@defun
-def foxh(ctx, aA_s, bB_s, z, r=1, series=None,
-         *, eliminate=True, eliminate_all=False,
-         force_series=False, asymp_tol=None, maxprec=None,
-         maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
-    aAn, aAp = aA_s
-    bBm, bBq = bB_s
-    n = len(aAn)
-    p = n + len(aAp)
-    m = len(bBm)
-    q = m + len(bBq)
-    aA = aAn+aAp
-    bB = bBm+bBq
-    a = [ctx.convert(a) for a, _ in aA]
-    b = [ctx.convert(b) for b, _ in bB]
-    A = [A for _, A in aA]
-    B = [B for _, B in bB]
-    z = ctx.convert(z)
-    r = ctx.convert(r)
-
-    A = [ctx._convert_param(Ai) for Ai in A]
-    B = [ctx._convert_param(Bj) for Bj in B]
-
-    if not all(Ai > 0 and (AiType == 'Z' or AiType == 'Q') for Ai, AiType in A + B):
-        raise NotImplementedError("All A and B must be positive rationals")
-
-    # Find L.C.M. of denominators
-    D = math.lcm(*[Ai.denominator if AiType == 'Q' else 1 for Ai, AiType in A + B])
-
-    # Convert rationals to integers using common denominator
-    A = [Ai.numerator * (D // Ai.denominator) if AiType == 'Q' else Ai * D for Ai, AiType in A]
-    B = [Bi.numerator * (D // Bi.denominator) if BiType == 'Q' else Bi * D for Bi, BiType in B]
-    r = r / D
-    prefactor = ctx.convert(D)
-
-    # Expand using Gauss Multiplication Formula
-    a_tilde = []
-    for ai, Ai in zip(a, A):
-        for k in range(Ai):
-            a_tilde.append((ai + k) / Ai)
-
-    b_tilde = []
-    for bj, Bj in zip(b, B):
-        for k in range(Bj):
-            b_tilde.append((bj + k) / Bj)
-
-    m_tilde = sum(B[:m])
-    n_tilde = sum(A[:n])
-
-    a_star = ctx.convert(sum(A[:n]) - sum(A[n:]) + sum(B[:m]) - sum(B[m:]))
-    c_star = m + n - (ctx.convert(p) + q) / 2
-
-    beta = ctx.one
-    for Ai in A:
-        beta /= Ai**Ai
-    for Bj in B:
-        beta *= Bj**Bj
-
-    # Compute M factor = prod(B_j^(b_j - 1/2)) / prod(A_i^(a_i - 1/2))
-    M = ctx.one
-    for bj, Bj in zip(b, B):
-        M *= Bj**(bj - ctx.one/2)
-    for ai, Ai in zip(a, A):
-        M /= Ai**(ai - ctx.one/2)
-
-    prefactor *= (2 * ctx.pi)**(c_star - a_star/2) * M
-
-    return prefactor * meijerg(
-        ctx,
-        [a_tilde[:n_tilde], a_tilde[n_tilde:]],
-        [b_tilde[:m_tilde], b_tilde[m_tilde:]],
-        z / (beta ** r),
-        r,
-        series=series,
-        **kwargs
-    )
-
 @defun_wrapped
-def appellf1(ctx, a, b1, b2, c, x, y, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def appellf1(ctx,a,b1,b2,c,x,y,**kwargs):
     # Assume x smaller
     # We will use x for the outer loop
     if abs(x) > abs(y):
@@ -1253,25 +1094,13 @@ def appellf1(ctx, a, b1, b2, c, x, y, *, eliminate=True, eliminate_all=False,
     return ctx.hyper2d({'m+n':[a],'m':[b1],'n':[b2]}, {'m+n':[c]}, x,y, **kwargs)
 
 @defun
-def appellf2(ctx, a, b1, b2, c1, c2, x, y,
-             *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def appellf2(ctx,a,b1,b2,c1,c2,x,y,**kwargs):
     # TODO: continuation
     return ctx.hyper2d({'m+n':[a],'m':[b1],'n':[b2]},
         {'m':[c1],'n':[c2]}, x,y, **kwargs)
 
 @defun
-def appellf3(ctx, a1, a2, b1, b2, c, x, y,
-             *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def appellf3(ctx,a1,a2,b1,b2,c,x,y,**kwargs):
     outer_polynomial = ctx.isnpint(a1) or ctx.isnpint(b1)
     inner_polynomial = ctx.isnpint(a2) or ctx.isnpint(b2)
     if not outer_polynomial:
@@ -1281,20 +1110,12 @@ def appellf3(ctx, a1, a2, b1, b2, c, x, y,
     return ctx.hyper2d({'m':[a1,b1],'n':[a2,b2]}, {'m+n':[c]},x,y,**kwargs)
 
 @defun
-def appellf4(ctx, a, b, c1, c2, x, y,
-             *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def appellf4(ctx,a,b,c1,c2,x,y,**kwargs):
     # TODO: continuation
     return ctx.hyper2d({'m+n':[a,b]}, {'m':[c1],'n':[c2]},x,y,**kwargs)
 
 @defun
-def hyper2d(ctx, a, b, x, y, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
+def hyper2d(ctx, a, b, x, y, **kwargs):
     r"""
     Sums the generalized 2D hypergeometric series
 
@@ -1367,8 +1188,7 @@ def hyper2d(ctx, a, b, x, y, *, eliminate=True, eliminate_all=False,
     product of two Gaussian hypergeometric functions::
 
         >>> from mpmath import mp, mpf, hyper2d, hyp2f1, exp
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> x, y = mpf(0.25), mpf(0.5)
         >>> hyper2d({'m':1,'n':1}, {}, x,y)
         2.666666666666666666666667
@@ -1389,8 +1209,7 @@ def hyper2d(ctx, a, b, x, y, *, eliminate=True, eliminate_all=False,
     Six of the 34 Horn functions, G1-G3 and H1-H3::
 
         >>> from mpmath import mp, hyper2d, nsum, fac, inf, rf
-        >>> mp.dps = 10
-        >>> mp.pretty = True
+        >>> mp.dps = 10; mp.pretty = True
         >>> x, y = 0.0625, 0.125
         >>> a1,a2,b1,b2,c1,c2,d = 1.1,-1.2,-1.3,-1.4,1.5,-1.6,1.7
         >>> hyper2d({'m+n':a1,'n-m':b1,'m-n':b2},{},x,y)  # G1
@@ -1431,9 +1250,6 @@ def hyper2d(ctx, a, b, x, y, *, eliminate=True, eliminate_all=False,
     3. [Weisstein]_ http://mathworld.wolfram.com/AppellHypergeometricFunction.html
 
     """
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
     x = ctx.convert(x)
     y = ctx.convert(y)
     def parse(dct, key):
@@ -1537,9 +1353,7 @@ def kampe_de_feriet(ctx,a,b,c,d,e,f,x,y,**kwargs):
 """
 
 @defun
-def bihyper(ctx, a_s, b_s, z, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
+def bihyper(ctx, a_s, b_s, z, **kwargs):
     r"""
     Evaluates the bilateral hypergeometric series
 
@@ -1561,8 +1375,7 @@ def bihyper(ctx, a_s, b_s, z, *, eliminate=True, eliminate_all=False,
     The value of `\,_2H_2` at `z = 1` is given by Dougall's formula::
 
         >>> from mpmath import mp, bihyper, mpf, hyper, gammaprod
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> a,b,c,d = 0.5, 1.5, 2.25, 3.25
         >>> bihyper([a,b],[c,d],1)
         -14.49118026212345786148847
@@ -1587,9 +1400,6 @@ def bihyper(ctx, a_s, b_s, z, *, eliminate=True, eliminate_all=False,
     2. [Wikipedia]_ http://en.wikipedia.org/wiki/Bilateral_hypergeometric_series
 
     """
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
     z = ctx.convert(z)
     c_s = a_s + b_s
     p = len(a_s)

@@ -282,7 +282,7 @@ class TanhSinh(QuadratureRule):
     **References**
 
     * [Bailey]_
-    * [BorweinTanhSinh]_
+    * http://users.cs.dal.ca/~jborwein/tanh-sinh.pdf
 
     """
 
@@ -456,8 +456,7 @@ class QuadratureMethods:
         ctx._gauss_legendre = GaussLegendre(ctx)
         ctx._tanh_sinh = TanhSinh(ctx)
 
-    def quad(ctx, f, *points, method='tanh-sinh', verbose=False,
-             maxdegree=None, error=False):
+    def quad(ctx, f, *points, **kwargs):
         r"""
         Computes a single, double or triple integral over a given
         1D interval, 2D rectangle, or 3D cuboid. A basic example::
@@ -683,13 +682,11 @@ class QuadratureMethods:
         `\sin(x)` accurately over an interval of length 100 but not over
         length 1000::
 
-            >>> quad(sin, [0, 100])  # Good
+            >>> quad(sin, [0, 100]); 1-cos(100)   # Good
             0.137681127712316
-            >>> 1-cos(100)
             0.137681127712316
-            >>> quad(sin, [0, 1000])  # Bad
+            >>> quad(sin, [0, 1000]); 1-cos(1000)   # Bad
             -37.8587612408485
-            >>> 1-cos(1000)
             0.437620923709297
 
         One solution is to break the integration into 10 intervals of
@@ -718,10 +715,10 @@ class QuadratureMethods:
 
         **References**
 
-        1. [Weisstein]_ http://mathworld.wolfram.com/DoubleIntegral.html
+        1. http://mathworld.wolfram.com/DoubleIntegral.html
 
         """
-        rule = method
+        rule = kwargs.get('method', 'tanh-sinh')
         if type(rule) is str:
             if rule == 'tanh-sinh':
                 rule = ctx._tanh_sinh
@@ -731,10 +728,11 @@ class QuadratureMethods:
                 raise ValueError("unknown quadrature rule: %s" % rule)
         else:
             rule = rule(ctx)
+        verbose = kwargs.get('verbose')
         dim = len(points)
         orig = prec = ctx.prec
         epsilon = ctx.eps/8
-        m = maxdegree or rule.guess_degree(prec)
+        m = kwargs.get('maxdegree') or rule.guess_degree(prec)
         points = [ctx._as_points(p) for p in points]
         try:
             ctx.prec += 20
@@ -756,12 +754,11 @@ class QuadratureMethods:
                 raise NotImplementedError("quadrature must have dim 1, 2 or 3")
         finally:
             ctx.prec = orig
-        if error:
+        if kwargs.get("error"):
             return +v, err
         return +v
 
-    def quadts(ctx, f, *points, verbose=False,
-               maxdegree=None, error=False):
+    def quadts(ctx, *args, **kwargs):
         """
         Performs tanh-sinh quadrature. The call
 
@@ -782,11 +779,10 @@ class QuadratureMethods:
         See documentation for TanhSinh for algorithmic information about
         tanh-sinh quadrature.
         """
-        return ctx.quad(f, *points, method='tanh-sinh', verbose=verbose,
-                        maxdegree=maxdegree, error=error)
+        kwargs['method'] = 'tanh-sinh'
+        return ctx.quad(*args, **kwargs)
 
-    def quadgl(ctx, f, *points, verbose=False,
-               maxdegree=None, error=False):
+    def quadgl(ctx, *args, **kwargs):
         """
         Performs Gauss-Legendre quadrature. The call
 
@@ -807,8 +803,8 @@ class QuadratureMethods:
         See documentation for TanhSinh for algorithmic information about
         tanh-sinh quadrature.
         """
-        return ctx.quad(f, *points, method='gauss-legendre', verbose=verbose,
-                        maxdegree=maxdegree, error=error)
+        kwargs['method'] = 'gauss-legendre'
+        return ctx.quad(*args, **kwargs)
 
     def quadosc(ctx, f, interval, omega=None, period=None, zeros=None):
         r"""
@@ -1007,9 +1003,7 @@ class QuadratureMethods:
         s += ctx.nsum(term, [n, ctx.inf])
         return s
 
-    def quadsubdiv(ctx, f, interval, tol=None, maxintervals=None, *,
-                   method='tanh-sinh', verbose=False,
-                   maxdegree=None, error=False):
+    def quadsubdiv(ctx, f, interval, tol=None, maxintervals=None, **kwargs):
         """
         Computes the integral of *f* over the interval or path specified
         by *interval*, using :func:`~mpmath.quad` together with adaptive
@@ -1076,8 +1070,7 @@ class QuadratureMethods:
         if maxintervals is None:
             maxintervals = 10 * ctx.prec
         count = 0
-        quad_args = {'method': method, 'verbose': verbose,
-                     'maxdegree': maxdegree, 'error': error}
+        quad_args = kwargs.copy()
         quad_args["verbose"] = False
         quad_args["error"] = True
         if tol is None:
@@ -1088,14 +1081,14 @@ class QuadratureMethods:
             while queue:
                 a, b = queue.pop()
                 s, err = ctx.quad(f, [a, b], **quad_args)
-                if verbose:
+                if kwargs.get("verbose"):
                     print("subinterval", count, a, b, err)
                 if err < tol or count > maxintervals:
                     total += s
                     total_error += err
                 else:
                     count += 1
-                    if count == maxintervals and verbose:
+                    if count == maxintervals and kwargs.get("verbose"):
                         print("warning: number of intervals exceeded maxintervals")
                     if a == -ctx.inf and b == ctx.inf:
                         m = 0
@@ -1109,7 +1102,7 @@ class QuadratureMethods:
                     queue.append((m, b))
         finally:
             ctx.prec = orig
-        if error:
+        if kwargs.get("error"):
             return +total, +total_error
         else:
             return +total

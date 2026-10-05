@@ -371,8 +371,9 @@ def test_interval_ae():
 def test_interval_nstr():
     iv.dps = n = 30
     x = mpi(1, 2)
-    assert iv.nstr(x, n, mode='plusminus') == '1.5 +- 0.5'
-    assert iv.nstr(x, n, mode='plusminus', use_spaces=False) == '1.5+-0.5'
+    # FIXME: error_dps should not be necessary
+    assert iv.nstr(x, n, mode='plusminus', error_dps=6) == '1.5 +- 0.5'
+    assert iv.nstr(x, n, mode='plusminus', use_spaces=False, error_dps=6) == '1.5+-0.5'
     assert iv.nstr(x, n, mode='percent') == '1.5 (33.33%)'
     assert iv.nstr(x, n, mode='brackets', use_spaces=False) == '[1.0,2.0]'
     assert iv.nstr(x, n, mode='brackets' , brackets=('<', '>')) == '<1.0, 2.0>'
@@ -382,7 +383,6 @@ def test_interval_nstr():
     assert iv.nstr(mpi('1e123', '1e129'), n, mode='diff') == '[1.0e+123, 1.0e+129]'
     exp = iv.exp
     assert iv.nstr(iv.exp(mpi('5000.1')), n, mode='diff') == '3.2797365856787867069110487[0926, 1191]e+2171'
-    assert iv.nstr(iv.mpc(3, 4)) == '([3.0, 3.0] + [4.0, 4.0]*j)'
 
 def test_mpi_from_str():
     assert iv.convert('1.5 +- 0.5') == mpi(mpf('1.0'), mpf('2.0'))
@@ -448,6 +448,3 @@ def test_issue_258():
     b = 0.5
     pytest.raises(ValueError, lambda: min(a, b))
     pytest.raises(ValueError, lambda: max(a, b))
-
-def test_mpi_mag():
-    assert iv.mag(iv.mpc(3, 4)) == 4

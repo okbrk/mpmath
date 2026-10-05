@@ -38,7 +38,7 @@ def fmt_str(draw, types='fFeE', for_complex=False):
     res += draw(st.sampled_from([''] + list('-+ ')))
 
     # no_neg_0 (not used yet.)
-    if sys.version_info >= (3, 11):
+    if sys.version_info[:3] > (3, 11):
         res += draw(st.sampled_from([''] + ['z']))
 
     # alternate mode
@@ -68,9 +68,9 @@ def fmt_str(draw, types='fFeE', for_complex=False):
                 + ['0' + str(_) for _ in range(40)]))
     if prec:
         res += '.' + prec
-        if sys.version_info >= (3, 14):
-            gchar = draw(st.sampled_from([''] + list(',_')))
-            res += gchar
+        # if sys.version_info >= (3, 14):
+        #     gchar = draw(st.sampled_from([''] + list(',_')))
+        #     res += gchar
 
     # Type
     res += draw(st.sampled_from(types))
@@ -469,13 +469,9 @@ def test_mpf_fmt_cpython():
     # No formatting code.
 
     assert f'{mp.mpf(0.0):.0}' == '0e+00'
-    assert f'{mp.pi}' == '3.14159265358979'
-    mp.pretty_dps = 'repr'
-    assert f'{mp.pi}' == '3.1415926535897931'
-    mp.shortest_str = True
-    assert f'{mp.mpf("1e100000")}' == '1e+100000'
 
 
+@settings(max_examples=20000)
 @given(fmt_str(types=list('fFeEgG%') + ['']),
        st.floats(allow_nan=True,
                  allow_infinity=True,
@@ -486,25 +482,17 @@ def test_mpf_fmt_cpython():
 @example(fmt='0=13,f', x=1.1)  # issue 917
 @example(fmt='013,f', x=1.1)
 @example(fmt='013,.0%', x=1.1)
-@example(fmt='010.6,f', x=0.1234567891)
-@example(fmt='010.7,f', x=0.1234567891)
-@example(fmt='010._f', x=0.1234567891)
-@example(fmt='#.11g', x=6.103515625e-05)
-@example(fmt='07,f', x=float('inf'))
-@example(fmt='#.0', x=0.0)
 def test_mpf_floats_bulk(fmt, x):
     '''
     These are additional random tests that check that mp.mpf and fp.mpf yield
     the same results for default precision.
     '''
 
-    mp.pretty_dps = "repr"
     if not x and math.copysign(1, x) == -1:
         return  # skip negative zero
     spec = read_format_spec(fmt)
-    if spec['frac_separators'] and sys.version_info < (3, 14):
-        mp.pretty_dps = "str"
-        return  # see also python/cpython#130860
+    if spec['frac_separators'] and spec['fill_char'] == '0':
+        return  # XXX: python/cpython#130860
     if not spec['type'] and spec['precision'] < 0 and math.isfinite(x):
         # The mpmath could choose a different decimal
         # representative (wrt CPython) for same binary
@@ -516,26 +504,12 @@ def test_mpf_floats_bulk(fmt, x):
         assert format(x, fmt) == format(mp.mpf(x), fmt)
 
 
-@given(fmt_str(types=['']),
-       st.floats(allow_nan=True,
-                 allow_infinity=True,
-                 allow_subnormal=False))
-@example('', 1000000000000000.0)
-def test_mpf_floats_default_bulk(fmt, x):
-    mp.shortest_str = True
-    if not x and math.copysign(1, x) == -1:
-        return  # skip negative zero
-    spec = read_format_spec(fmt)
-    assert format(x, fmt) == format(mp.mpf(x), fmt)
-
-
+@settings(max_examples=20000)
 @given(fmt_str(types=list('gGfFeE') + [''], for_complex=True),
        st.complex_numbers(allow_nan=True,
                           allow_infinity=True,
                           allow_subnormal=True))
-@example(fmt='#.0', z=0j)
-def test_mpc_complexes_bulk(fmt, z):
-    mp.pretty_dps = "repr"
+def test_mpc_complexes(fmt, z):
     if ((not z.real and math.copysign(1, z.real) == -1)
             or (not z.imag and math.copysign(1, z.imag) == -1)):
         return  # skip negative zero
@@ -550,21 +524,6 @@ def test_mpc_complexes_bulk(fmt, z):
             assert complex(format(z)) == complex(format(mp.mpc(z)))
     else:
         assert format(z, fmt) == format(mp.mpc(z), fmt)
-
-
-@given(fmt_str(types=[''], for_complex=True),
-       st.complex_numbers(allow_nan=True,
-                          allow_infinity=True,
-                          allow_subnormal=False))
-@example(fmt='', z=complex(0))
-@example(fmt='#', z=complex(0))
-def test_mpc_complexes_default_bulk(fmt, z):
-    mp.shortest_str = True
-    if ((not z.real and math.copysign(1, z.real) == -1)
-            or (not z.imag and math.copysign(1, z.imag) == -1)):
-        return  # skip negative zero
-    spec = read_format_spec(fmt)
-    assert format(z, fmt) == format(mp.mpc(z), fmt)
 
 
 def test_mpc_fmt():
@@ -829,16 +788,6 @@ def test_mpf_fmt():
             assert f"{mp.mpf('-0.1'):=.4Df}" == "-0.1000"
 
 
-def test_default_rounding():
-    x = mp.mpf(mp.pi)
-
-    assert f"{x:.3f}" == '3.142'
-    mp.rounding = 'd'
-    assert f"{x:.3f}" == '3.141'
-    mp.rounding = 'u'
-    assert f"{x:.3f}" == '3.142'
-
-
 def test_issue_858():
     for n in range(2, 15):
         str_num = '0.' + (n)*'9'
@@ -864,12 +813,8 @@ def test_errors():
     with pytest.raises(ValueError, match="Invalid format specifier '12.3 E '"):
         f"{mp.mpf('4'):12.3 E }"
 
-    with pytest.raises(ValueError):
-        f"{mp.mpf(1):.f}"
-    with pytest.raises(ValueError):
-        f"{mp.mpf(1):._6f}"
 
-
+@settings(max_examples=10000)
 @given(st.floats(allow_nan=True, allow_infinity=True,
                  allow_subnormal=False))
 @example(float('nan'))
@@ -890,12 +835,12 @@ except OSError:
 def float_print(d, i):
     fmt = "%." + str(i) + "a\n"
     a = ctypes.create_string_buffer(256)
-    libc.sprintf.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
     libc.sprintf(a, bytes(fmt, 'utf-8'), ctypes.c_double(d))
     return a.raw.decode('utf-8').split("\n")[0]
 
 
 @pytest.mark.skipif(libc is None, reason='requires libc')
+@settings(max_examples=10000)
 @given(st.floats(allow_nan=False, allow_infinity=False,
                  allow_subnormal=False),
        st.integers(min_value=0, max_value=15))
@@ -906,6 +851,7 @@ def test_hexadecimal_with_libc_bulk(x, p):
     assert mp.mpf(m_hex) == mp.mpf(x_hex)
 
 
+@settings(max_examples=10000)
 @given(st.floats(allow_nan=False, allow_infinity=False,
                  allow_subnormal=False),
        st.integers(min_value=-3, max_value=15))
@@ -927,9 +873,7 @@ def test_binary_fmt():
     assert f'{x:b}' == '1.1p+1'
     assert f'{x:.2b}' == '1.10p+1'
     assert f'{x:+.2b}' == '+1.10p+1'
-    assert f'{x:#.2b}' == '1.10p+1'
-    assert f'{x:.0b}' == '1p+2'
-    assert f'{x:#.0b}' == '1.p+2'
+    assert f'{x:#.2b}' == '0b1.10p+1'
 
     x = mp.mpf(0)
     assert f'{x:.2b}' == '0.00p+0'
@@ -944,83 +888,3 @@ def test_hexadecimal_fmt():
         assert f'{x:.0a}' == '0x1p+0'
         assert f'{x:#.0a}' == '0x1.p+0'
         assert f"{mp.mpf('1.234567890123456789'):+.0a}" == '+0x1p+0'
-
-
-@given(st.floats(allow_nan=False, allow_infinity=False,
-                 allow_subnormal=False),
-       st.integers(min_value=1, max_value=40),
-       st.sampled_from(list('UDNYZ')))
-def test_fixed_with_gmpy2_bulk(x, dps, mode):
-    gmpy2 = pytest.importorskip('gmpy2')
-    if not x and math.copysign(1, x) == -1:
-        return  # skip negative zero
-    fmt = f'.{dps}{mode}f'
-    gx = gmpy2.mpfr(x)
-    mx = mp.mpf(x)
-    assert format(mx, fmt) == format(gx, fmt)
-
-
-def test_issue_1131():
-    # 'f' formatting must round the last digit like the 'e' path and MPFR do.
-    # below 0.1 unit in the last place at .1f:
-    tiny = 0.0004641126344492319
-    cases = [
-        # nonzero remainder hidden past the extracted guard digits
-        (0.688196003332049,   '.15Uf', '0.688196003332050'),
-        (0.688196003332049,   '.15Yf', '0.688196003332050'),
-        (0.6619127364342315,  '.21Nf', '0.661912736434231541161'),
-        (0.6297105422352101,  '.21Uf', '0.629710542235210057883'),
-        (0.6297105422352101,  '.21Yf', '0.629710542235210057883'),
-        (0.09235788595039773, '.21Uf', '0.092357885950397733411'),
-        (0.15440508559046828, '.30Uf',
-         '0.154405085590468282852327774891'),
-        # value below the last requested place: away from zero rounds it up,
-        # toward zero truncates it (.0f drops the trailing '.0', as in CPython)
-        (tiny,  '.1Nf', '0.0'), (tiny,  '.1Zf', '0.0'), (tiny,  '.1Df', '0.0'),
-        (tiny,  '.1Uf', '0.1'), (tiny,  '.1Yf', '0.1'),
-        (tiny,  '.3Uf', '0.001'), (tiny, '.0Uf', '1'),
-        (-tiny, '.1Nf', '-0.0'), (-tiny, '.1Uf', '-0.0'), (-tiny, '.1Zf', '-0.0'),
-        (-tiny, '.1Df', '-0.1'), (-tiny, '.1Yf', '-0.1'),
-    ]
-    for x, fmt, expected in cases:
-        assert format(mp.mpf(x), fmt) == expected, (x.hex(), fmt)
-
-    # the expansion terminates with a 5 at the rounding position: round-half-even
-    assert format(mp.mpf('0.125'), '.2Nf') == '0.12'
-    assert format(mp.mpf('0.375'), '.2Nf') == '0.38'
-    assert format(mp.mpf('2.5'), '.0Nf') == '2'
-    assert format(mp.mpf('3.5'), '.0Nf') == '4'
-    # carry propagation
-    assert format(mp.mpf('0.6999999999'), '.4Uf') == '0.7000'
-
-
-def test_str_rounding_near_boundary():
-    # to_str extracted only dps+10 digits, narrower than format_scientific /
-    # format_fixed which cover the whole mantissa.  A value sitting just above
-    # a decimal boundary is then extracted as "...99999" one ULP low, so
-    # directed rounding through str/nstr fell one ULP short of the 'e' format
-    # and the exact value.  These exact dyadics are just above such boundaries.
-    with mp.workprec(200):
-        b = mp.mpf(1058187881481430099485) / mp.mpf(2)**74     # 0.056020000...16941...
-        d = mp.mpf(136826224263983729993245) / mp.mpf(2)**81   # 0.056590000...
-        e = -mp.mpf(2218543292904312125153593) / mp.mpf(2)**86  # -0.028674000...
-
-    # public nstr(rnd=...) API: only directed-away modes were affected
-    assert mp.nstr(b, 6, rnd='n') == '0.05602'
-    assert mp.nstr(b, 6, rnd='c') == '0.0560201'
-    assert mp.nstr(b, 6, rnd='u') == '0.0560201'
-    assert mp.nstr(b, 6, rnd='f') == '0.05602'
-    assert mp.nstr(b, 6, rnd='d') == '0.05602'
-    assert mp.nstr(d, 6, rnd='n') == '0.05659'
-    assert mp.nstr(d, 6, rnd='c') == '0.0565901'
-    assert mp.nstr(d, 6, rnd='u') == '0.0565901'
-    # negative: ceiling truncates the magnitude, floor/away rounds it up
-    assert mp.nstr(e, 6, rnd='c') == '-0.028674'
-    assert mp.nstr(e, 6, rnd='d') == '-0.028674'
-    assert mp.nstr(e, 6, rnd='u') == '-0.0286741'
-    assert mp.nstr(e, 6, rnd='f') == '-0.0286741'
-
-    # str/nstr now agrees with the already-correct 'e' format for the same value
-    assert format(b, '.5Ne') == '5.60200e-02'
-    assert format(b, '.5Ue') == '5.60201e-02'
-    assert format(b, '.5Ye') == '5.60201e-02'

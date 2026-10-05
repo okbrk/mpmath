@@ -80,10 +80,7 @@ Mpmath uses a global working precision; it does not keep track of the precision 
     Mpmath settings:
       mp.prec = 53                [default: 53]
       mp.dps = 15                 [default: 15]
-      mp.rounding = 'n'           [default: 'n']
       mp.trap_complex = False     [default: False]
-      mp.pretty_dps = 'str'       [default: 'str']
-      mp.shortest_str = False     [default: False]
 
 The term **prec** denotes the binary precision (measured in bits) while **dps** (short for *decimal places*) is the decimal precision. Binary and decimal precision are related roughly according to the formula ``prec = 3.33*dps``. For example, it takes a precision of roughly 333 bits to hold an approximation of pi that is accurate to 100 decimal places (actually slightly more than 333 bits is used).
 
@@ -99,10 +96,10 @@ When the precision has been set, all ``mpf`` operations are carried out at that 
 
     >>> mp.dps = 50
     >>> mpf(1) / 6
-    mpf('0.1666666666666666666666666666666666666666666666666666')
+    mpf('0.16666666666666666666666666666666666666666666666666656')
     >>> mp.dps = 25
     >>> mpf(2) ** mpf('0.5')
-    mpf('1.41421356237309504880168871')
+    mpf('1.414213562373095048801688713')
 
 The precision of complex arithmetic is also controlled by the ``mp`` object:
 
@@ -122,17 +119,6 @@ Or why not 1 googolplex:
     1.0e+100000000000000000000000000000000000000000000000000...
 
 The (binary) exponent is stored exactly and is independent of the precision.
-
-The ``rounding`` property control default rounding mode for the context:
-
-    >>> mp.rounding  # round to nearest is the default
-    'n'
-    >>> sin(1)
-    mpf('0.8414709848078965')
-    >>> mp.rounding = 'u'  # round up
-    >>> sin(1)
-    mpf('0.84147098480789662')
-    >>> mp.rounding = 'n'
 
 Temporarily changing the precision
 ..................................
@@ -209,20 +195,6 @@ Note that when creating a new ``mpf``, the value will at most be as accurate as 
 
 (Binary fractions such as 0.5, 1.5, 0.75, 0.125, etc, are generally safe as input, however, since those can be represented exactly by Python floats.)
 
-You always can use hexadecimal or binary strings of didits to specify exact
-value unambiguously:
-
-    >>> mpf("0x1.5544cb90d4f68p-2")
-    mpf('0.33327024528011018')
-    >>> mpf("1.5544cb90d4f68p-2", base=16)
-    mpf('0.33327024528011018')
-    >>> f"{_:a}"
-    '0x1.5544cb90d4f68p-2'
-    >>> mpf("0b1.0101010101000100110010111001000011010100111101101p-2")
-    mpf('0.33327024528011018')
-    >>> f"{_:b}"
-    '1.0101010101000100110010111001000011010100111101101p-2'
-
 Printing
 --------
 
@@ -249,39 +221,6 @@ Setting the ``mp.pretty`` option will use the ``str()``-style output for ``repr(
     >>> mpf(0.6)
     mpf('0.59999999999999998')
 
-To use enough digits to be able recreate value exactly, enable
-``mp.shortest_str`` option.  With this, repr/str and the new-style string
-formatting *without format specifier* will use *minimal* number of decimal
-digits that will preserve value on string input, like repr for CPython's
-builtin floats:
-
-    >>> mp.shortest_str = True
-    >>> mp.pretty = True
-    >>> mpf(10.9) == mpf("10.9")
-    True
-    >>> mpf(10.9)
-    10.9
-    >>> f"{_}"
-    '10.9'
-    >>> mp.pretty = False
-    >>> mpf(10.9)
-    mpf('10.9')
-    >>> mp.shortest_str = False
-
-Alternatively, set ``mp.pretty_dps``
-to ``"repr"`` (default value is ``"str"``).  Same option is used to control
-default number of digits in the new-style string formatting *without format
-specifier*, i.e. ``format(exp(mpf(1)))``.
-
-    >>> mp.pretty = True
-    >>> mpf(0.1)
-    0.1
-    >>> mp.pretty_dps = "repr"
-    >>> mpf(0.1)
-    0.10000000000000001
-    >>> mp.pretty_dps = "str"
-    >>> mp.pretty = False
-
 The number of digits with which numbers are printed by default is determined by
 the working precision.  To specify the number of digits to show without
 changing the working precision, use :func:`format syntax support
@@ -295,42 +234,3 @@ changing the working precision, use :func:`format syntax support
     '0.16666667'
     >>> f'{a:.50}'
     '0.16666666666666665741480812812369549646973609924316'
-
-Use mpmath CLI
---------------
-
-It's possible to :ref:`run the mpmath as a module <cli>` (``python -m
-mpmath``).  This provides access to the Python (or IPython) shell, where all
-public mpmath interfaces are imported.  Also, per default, floating-point
-literals (decimal, binary or hexadecimal) are parsed as ``mpf``/``mpc`` and
-``str()``-style output for ``repr()`` is enabled.  Here is an example of
-IPython-powered shell session:
-
-.. code:: text
-
-    In [1]: 0b1.1011p-2  # binary input
-    Out[1]: 0.421875
-
-    In [2]: gamma(_)
-    Out[2]: 2.1008334194214666
-
-    In [3]: sin(1)
-    Out[3]: 0.8414709848078965
-
-    In [4]: type(_)
-    Out[4]: mpmath.ctx_mp_python.mpf
-
-    In [5]: acos(0x1.bp13)  # hexadecimal input
-    Out[5]: (0.0 + 10.227308670295587j)
-
-    In [6]: type(_)
-    Out[6]: mpmath.ctx_mp_python.mpc
-
-    In [7]: 0.8414709848078965j  # decimal input
-    Out[7]: (0.0 + 0.8414709848078965j)
-
-    In [8]: _7.imag == _3
-    Out[8]: True
-
-    In [9]: type(_7)
-    Out[9]: mpmath.ctx_mp_python.mpf

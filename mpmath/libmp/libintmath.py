@@ -13,6 +13,10 @@ from functools import lru_cache
 from .backend import MPZ, MPZ_ONE, MPZ_ZERO, gmpy
 
 
+small_trailing = [0] * 256
+for j in range(1,8):
+    small_trailing[1<<j::1<<(j+1)] = [j] * (1<<(7-j))
+
 def giant_steps(start, target, n=2):
     """
     Return a list of integers ~=
@@ -53,24 +57,35 @@ def lshift(x, n):
 
 def trailing(n):
     """Count the number of trailing zero bits in abs(n)."""
-    return MPZ((n & (-n)).bit_length() - 1 if n else 0)
+    if not n:
+        return 0
+    low_byte = n & 0xff
+    if low_byte:
+        return small_trailing[low_byte]
+    t = 8
+    n >>= 8
+    while not n & 0xff:
+        n >>= 8
+        t += 8
+    return t + small_trailing[n & 0xff]
+
+def bitcount(n):
+    """Calculate bit size of abs(n)."""
+    return MPZ(n).bit_length()
 
 if gmpy and hasattr(MPZ, 'bit_scan1'):
     def trailing(n):
         return MPZ(n).bit_scan1() if n else MPZ(0)
 
 # Used to avoid slow function calls as far as possible
+trailtable = [trailing(n) for n in range(256)]
 bctable = [n.bit_length() for n in range(1024)]
+
+# TODO: speed up for bases 2, 4, 8, 16, ...
 
 def bin_to_radix(x, xbits, base, bdigits):
     """Changes radix of a fixed-point number; i.e., converts
     x * 2**xbits to floor(x * base**bdigits)."""
-    # For power-of-two bases, base**bdigits is itself a power of two, so the
-    # whole conversion reduces to a bit shift and the (potentially
-    # very large) multiplication by base**bdigits can be avoided entirely.
-    if base & (base - 1) == 0:
-        shift = (base.bit_length() - 1) * bdigits - xbits
-        return x << shift if shift >= 0 else x >> (-shift)
     return x * (MPZ(base)**bdigits) >> xbits
 
 stddigits = '0123456789abcdefghijklmnopqrstuvwxyz'
@@ -304,10 +319,8 @@ ifac = math.factorial
 
 if gmpy:
     ifac = gmpy.fac
-    if hasattr(gmpy, 'double_fac'):
-        ifac2 = gmpy.double_fac
-    if hasattr(gmpy, 'fib'):
-        ifib = gmpy.fib
+    ifac2 = gmpy.double_fac
+    ifib = gmpy.fib
 
 ifac = lru_cache(maxsize=1024)(ifac)
 
@@ -487,41 +500,3 @@ def stirling2(n, k):
             s += t * MPZ(j)**n
         t = t * (k - j) // (j + 1)
     return s // ifac(k)
-
-def jacobi_symbol(m, n):
-    """Returns the Jacobi symbol (m / n)."""
-    m, n = MPZ(m), MPZ(n)
-    if not n % 2:
-        raise ValueError('n should be an odd integer')
-    if n < 0:
-        return jacobi_symbol(m, -n)*(MPZ(-1) if m < 0 else MPZ_ONE)
-    if m < 0 or m > n:
-        m = m % n
-    if not m:
-        return MPZ(n == 1)
-    if n == 1 or m == 1:
-        return MPZ_ONE
-    if math.gcd(m, n) != 1:
-        return MPZ_ZERO
-
-    j = MPZ_ONE
-    s = trailing(m)
-    m = m >> s
-    if s % 2 and n % 8 in [3, 5]:
-        j *= -1
-
-    while m != 1:
-        if m % 4 == 3 and n % 4 == 3:
-            j *= -1
-        m, n = n % m, m
-        s = trailing(m)
-        m = m >> s
-        if s % 2 and n % 8 in [3, 5]:
-            j *= -1
-    return j
-
-if gmpy and hasattr(gmpy, 'jacobi'):
-    def jacobi_symbol(m, n):
-        if n < 0:
-            return gmpy.jacobi(m, -n)*(MPZ(-1) if m < 0 else MPZ_ONE)
-        return gmpy.jacobi(m, n)

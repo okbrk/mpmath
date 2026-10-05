@@ -81,9 +81,6 @@ def plot(ctx, f, xlim=[-5,5], ylim=None, points=200, file=None, dpi=None,
                 if segment:
                     segments.append(segment)
                 segment = []
-            except Exception:
-                pylab.close(fig)
-                raise
         if segment:
             segments.append(segment)
         for segment in segments:
@@ -174,14 +171,10 @@ def cplot(ctx, f, re=[-5,5], im=[-5,5], points=2000, color=None,
          with white for positive reals, black for negative reals, gold in the
          upper half plane, and blue in the lower half plane.
 
-    The *points* argument specifies approximately the total number of
-    evaluation points in the rectangular grid, not the number per axis.
-    The number of points on each axis is rounded upward independently,
-    so the actual number of evaluations may be slightly larger.
-
-    To obtain a sharp image, *points* may need to be increased to 100,000
-    or thereabout. Since evaluating the function that many times is likely
-    to be slow, the 'verbose' option is useful to display progress.
+    To obtain a sharp image, the number of points may need to be
+    increased to 100,000 or thereabout. Since evaluating the
+    function that many times is likely to be slow, the 'verbose'
+    option is useful to display progress.
 
     .. note :: This function requires matplotlib (pylab).
     """
@@ -200,8 +193,8 @@ def cplot(ctx, f, re=[-5,5], im=[-5,5], points=2000, color=None,
     ima, imb = im
     dre = reb - rea
     dim = imb - ima
-    M = int(ctx.ceil(ctx.sqrt(points*dre/dim)))
-    N = int(ctx.ceil(ctx.sqrt(points*dim/dre)))
+    M = int(ctx.sqrt(points*dre/dim)+1)
+    N = int(ctx.sqrt(points*dim/dre)+1)
     x = pylab.linspace(rea, reb, M)
     y = pylab.linspace(ima, imb, N)
     # Note: we have to be careful to get the right rotation.
@@ -216,9 +209,6 @@ def cplot(ctx, f, re=[-5,5], im=[-5,5], points=2000, color=None,
                 v = color(f(z))
             except ctx.plot_ignore:
                 v = (0.5, 0.5, 0.5)
-            except Exception:
-                pylab.close(fig)
-                raise
             w[n,m] = v
         if verbose:
             print(str(n) + ' of ' + str(N))
@@ -278,11 +268,7 @@ def splot(ctx, f, u=[-5,5], v=[-5,5], points=100, keep_aspect=True,
     xab, yab, zab = [[0, 0] for i in range(3)]
     for n in range(N):
         for m in range(M):
-            try:
-                fdata = f(ctx.convert(u[m]), ctx.convert(v[n]))
-            except Exception:
-                plt.close(fig)
-                raise
+            fdata = f(ctx.convert(u[m]), ctx.convert(v[n]))
             try:
                 x[m,n], y[m,n], z[m,n] = fdata
             except TypeError:

@@ -1,3 +1,5 @@
+import warnings
+
 # TODO: interpret list as vectors (for multiplication)
 
 # pickling helper
@@ -282,12 +284,19 @@ class _matrix:
     mathematical properties you might expect from a norm.
     """
 
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         self._data = {}
         # LU decompostion cache, this is useful when solving the same system
         # multiple times, when calculating the inverse and when calculating the
         # determinant
         self._LU = None
+        if "force_type" in kwargs:
+            warnings.warn("The force_type argument was removed, it did not work"
+                " properly anyway. If you want to force floating-point or"
+                " interval computations, use the respective methods from `fp`"
+                " or `mp` instead, e.g., `fp.matrix()` or `iv.matrix()`."
+                " If you want to truncate values to integer, use .apply(int) instead.",
+                DeprecationWarning)
         if isinstance(args[0], (list, tuple)):
             if not args[0]:
                 self._rows = 0
@@ -311,14 +320,10 @@ class _matrix:
         elif isinstance(args[0], int):
             # create empty matrix of given dimensions
             if len(args) == 1:
-                if args[0] < 0:
-                    raise ValueError("expected non-negative int")
                 self._rows = self._cols = args[0]
             else:
                 if not isinstance(args[1], int):
                     raise TypeError("expected int")
-                if args[0] < 0 or args[1] < 0:
-                    raise ValueError("expected non-negative int")
                 self._rows = args[0]
                 self._cols = args[1]
         elif isinstance(args[0], _matrix):
@@ -820,16 +825,16 @@ class MatrixMethods:
         ctx.matrix.ctx = ctx
         ctx.matrix.convert = ctx.convert
 
-    def eye(ctx, n):
+    def eye(ctx, n, **kwargs):
         """
         Create square identity matrix n x n.
         """
-        A = ctx.matrix(n)
+        A = ctx.matrix(n, **kwargs)
         for i in range(n):
             A[i,i] = 1
         return A
 
-    def diag(ctx, diagonal):
+    def diag(ctx, diagonal, **kwargs):
         """
         Create square diagonal matrix using given list.
 
@@ -841,12 +846,12 @@ class MatrixMethods:
          ['0.0', '2.0', '0.0'],
          ['0.0', '0.0', '3.0']])
         """
-        A = ctx.matrix(len(diagonal))
+        A = ctx.matrix(len(diagonal), **kwargs)
         for i in range(len(diagonal)):
             A[i,i] = diagonal[i]
         return A
 
-    def zeros(ctx, *args):
+    def zeros(ctx, *args, **kwargs):
         """
         Create matrix m x n filled with zeros.
         One given dimension will create square matrix n x n.
@@ -865,13 +870,13 @@ class MatrixMethods:
             n = args[1]
         else:
             raise TypeError('zeros expected at most 2 arguments, got %i' % len(args))
-        A = ctx.matrix(m, n)
+        A = ctx.matrix(m, n, **kwargs)
         for i in range(m):
             for j in range(n):
                 A[i,j] = 0
         return A
 
-    def ones(ctx, *args):
+    def ones(ctx, *args, **kwargs):
         """
         Create matrix m x n filled with ones.
         One given dimension will create square matrix n x n.
@@ -890,7 +895,7 @@ class MatrixMethods:
             n = args[1]
         else:
             raise TypeError('ones expected at most 2 arguments, got %i' % len(args))
-        A = ctx.matrix(m, n)
+        A = ctx.matrix(m, n, **kwargs)
         for i in range(m):
             for j in range(n):
                 A[i,j] = 1
@@ -912,7 +917,7 @@ class MatrixMethods:
                 A[i,j] = ctx.one / (i + j + 1)
         return A
 
-    def randmatrix(ctx, m, n=None, min=0, max=1):
+    def randmatrix(ctx, m, n=None, min=0, max=1, **kwargs):
         """
         Create a random m x n matrix.
 
@@ -928,7 +933,7 @@ class MatrixMethods:
         """
         if not n:
             n = m
-        A = ctx.matrix(m, n)
+        A = ctx.matrix(m, n, **kwargs)
         for i in range(m):
             for j in range(n):
                 A[i,j] = ctx.rand() * (max - min) + min

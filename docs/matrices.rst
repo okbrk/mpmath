@@ -426,9 +426,9 @@ Examples::
     >>> A = mp.matrix([[3, -1, 2], [2, 5, -5], [-2, -3, 7]])
     >>> Q, R = mp.schur(A)
     >>> mp.nprint(R, 3)
-    [2.0  0.417  2.53]
-    [0.0    4.0  4.74]
-    [0.0    0.0   9.0]
+    [2.0  0.417  -2.53]
+    [0.0    4.0  -4.74]
+    [0.0    0.0    9.0]
     >>> print(mp.chop(A - Q * R * Q.transpose_conj()))
     [0.0  0.0  0.0]
     [0.0  0.0  0.0]
@@ -469,9 +469,6 @@ Examples::
     [0.0]
     >>> print(mp.chop( EL[0,:] * A - EL[0,:] * E[0]))
     [0.0  0.0  0.0]
-
-
-See also [Stoer]_ and [Kresser]_.
 
 
 The symmetric eigenvalue problem
@@ -517,9 +514,6 @@ Examples::
     >>> print(mp.chop(A * Q[:,0] - E[0] * Q[:,0]))
     [0.0]
     [0.0]
-
-
-See also [Golub]_, [GolubWelsch]_, [Stoer]_ and [Stroud]_.
 
 
 Determinant

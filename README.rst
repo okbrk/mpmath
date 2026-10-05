@@ -1,12 +1,14 @@
 mpmath
 ======
 
-|pypi version| |Build status| |Zenodo Badge|
+|pypi version| |Build status| |Code coverage status| |Zenodo Badge|
 
 .. |pypi version| image:: https://img.shields.io/pypi/v/mpmath.svg
    :target: https://pypi.python.org/pypi/mpmath
 .. |Build status| image:: https://github.com/mpmath/mpmath/workflows/test/badge.svg
    :target: https://github.com/mpmath/mpmath/actions?workflow=test
+.. |Code coverage status| image:: https://codecov.io/gh/mpmath/mpmath/branch/master/graph/badge.svg
+   :target: https://codecov.io/gh/mpmath/mpmath
 .. |Zenodo Badge| image:: https://zenodo.org/badge/2934512.svg
    :target: https://zenodo.org/badge/latestdoi/2934512
 
@@ -47,9 +49,6 @@ or new features to mpmath:
 * Max Gaukler <max.gaukler@fau.de>
 * Guillermo Navas-Palencia <g.navas.palencia@gmail.com>
 * Nike Dattani <nike@hpqc.org>
-* Tim Peters <tim.peters@gmail.com>
-* Javier Garcia <javier.garcia.tw@hotmail.com>
-* Graham Hesketh <gdh1e10@gmail.com>
 
 Numerous other people have contributed by reporting bugs,
 requesting new features, or suggesting improvements to the
@@ -74,8 +73,8 @@ Credit also goes to:
 * The authors of the GMP library and the Python wrapper
   gmpy, enabling mpmath to become much faster at
   high precision
-* The authors of MPFR, pari/gp, MPFUN, and other arbitrary-precision
-  libraries, whose documentation has been helpful
+* The authors of MPFR, pari/gp, MPFUN, and other arbitrary-
+  precision libraries, whose documentation has been helpful
   for implementing many of the algorithms in mpmath
 * Wikipedia contributors; Abramowitz & Stegun; Gradshteyn & Ryzhik;
   Wolfram Research for MathWorld and the Wolfram Functions site.
@@ -86,8 +85,6 @@ Credit also goes to:
 
 Release history:
 
-* Version 1.4.1 released on March 15, 2026
-* Version 1.4.0 released on February 23, 2026
 * Version 1.3.0 released on March 7, 2023
 * Version 1.2.1 released on February 9, 2021
 * Version 1.2.0 released on February 1, 2021
@@ -116,8 +113,8 @@ Release history:
 1. Download & installation
 --------------------------
 
-Mpmath requires Python 3.10 or later versions.  It has been tested with CPython
-3.10 through 3.15, with PyPy 7.3.23 and with GraalPy 25.3.
+Mpmath requires Python 3.9 or later versions.  It has been tested with CPython
+3.9 through 3.14 and for PyPy 3.10.
 
 The latest release of mpmath can be downloaded from the mpmath
 website and from https://github.com/mpmath/mpmath/releases
@@ -188,6 +185,3 @@ to the `mpmath mailinglist <https://groups.google.com/g/mpmath>`_.
 
 You can also report bugs and send patches to the mpmath issue tracker,
 https://github.com/mpmath/mpmath/issues
-
-See also our `contributing guidelines
-<https://github.com/mpmath/mpmath/blob/master/.github/CONTRIBUTING.rst>`_.

@@ -6,23 +6,19 @@ operating with them.
 import functools
 import re
 import sys
+import warnings
 
 from . import function_docs, libmp
 from .ctx_base import StandardBaseContext
-from .ctx_mp_python import PythonMPContext as BaseMPContext
-from .libmp import (MPZ_ONE, ComplexResult, dps_to_prec, finf, fnan, fninf,
-                    fone, from_rational, fzero, int_types, mpf_add, mpf_div,
-                    mpf_mul, mpf_neg, mpf_sub, repr_dps, round_nearest,
-                    to_man_exp, to_str)
-from .libmp.backend import MPQ
-from .libmp.gammazeta import (mpf_apery, mpf_catalan, mpf_euler, mpf_glaisher,
-                              mpf_khinchin, mpf_mertens, mpf_twinprime)
-from .libmp.libelefun import (mpf_degree, mpf_e, mpf_ln2, mpf_ln10, mpf_phi,
-                              mpf_pi)
-from .libmp.libmpc import (mpc_add, mpc_add_mpf, mpc_div, mpc_div_mpf,
-                           mpc_mpf_div, mpc_mpf_sub, mpc_mul, mpc_mul_mpf,
-                           mpc_neg, mpc_sub, mpc_sub_mpf, mpc_to_str)
-from .libmp.libmpf import mpf_rand
+from .libmp import (MPQ, MPZ_ONE, ComplexResult, dps_to_prec, finf, fnan,
+                    fninf, fone, from_rational, fzero, int_types, mpc_add,
+                    mpc_add_mpf, mpc_div, mpc_div_mpf, mpc_mpf_div,
+                    mpc_mpf_sub, mpc_mul, mpc_mul_mpf, mpc_neg, mpc_sub,
+                    mpc_sub_mpf, mpc_to_str, mpf_add, mpf_apery, mpf_catalan,
+                    mpf_degree, mpf_div, mpf_e, mpf_euler, mpf_glaisher,
+                    mpf_khinchin, mpf_ln2, mpf_ln10, mpf_mertens, mpf_mul,
+                    mpf_neg, mpf_phi, mpf_pi, mpf_rand, mpf_sub, mpf_twinprime,
+                    repr_dps, to_man_exp, to_str)
 
 
 get_complex = re.compile(r"""
@@ -33,30 +29,27 @@ get_complex = re.compile(r"""
 """, re.VERBOSE | re.IGNORECASE)
 
 
+def __getattr__(name):
+    if name == 'mpnumeric':
+        from .ctx_mp_python import mpnumeric
+        warnings.warn(f"{name} is deprecated", DeprecationWarning)
+        return mpnumeric
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+from .ctx_mp_python import PythonMPContext as BaseMPContext
+
+
 class MPContext(BaseMPContext, StandardBaseContext):
     """
-    Context for multiple precision floatng-point arithmetic.
-
-    **Arguments**
-
-    *prec*
-         precision in bits, default is 53
-    *rounding*
-         rounding mode, default is round to nearest
-    *trap_complex*
-         enable complex answers, where real aren't possible, default is False
-
+    Context for multiprecision arithmetic with a global precision.
     """
 
-    def __init__(ctx, prec=sys.float_info.mant_dig,
-                 rounding=round_nearest, trap_complex=False):
+    def __init__(ctx, prec=sys.float_info.mant_dig, trap_complex=False):
         BaseMPContext.__init__(ctx)
         ctx.pretty = False
-        ctx.shortest_str = False
         ctx.types = [ctx.mpf, ctx.mpc, ctx.constant]
         ctx.default()
         ctx._set_prec(prec)
-        ctx._set_rounding(rounding)
         ctx.trap_complex = trap_complex
         StandardBaseContext.__init__(ctx)
 
@@ -72,10 +65,8 @@ class MPContext(BaseMPContext, StandardBaseContext):
         ctx.atan2.__func__.__doc__ = function_docs.atan2
 
         ctx.digamma.__doc__ = function_docs.digamma
-        ctx.cospi.__doc__ = function_docs.cospi
-        ctx.sinpi.__doc__ = function_docs.sinpi
-        ctx.sinpi.__name__ = 'sinpi'
-        ctx.cospi.__name__ = 'cospi'
+        ctx.cospi.__doc_ = function_docs.cospi
+        ctx.sinpi.__doc_ = function_docs.sinpi
 
     def init_builtins(ctx):
         # Exact constants
@@ -107,50 +98,50 @@ class MPContext(BaseMPContext, StandardBaseContext):
 
         # Standard functions
         ctx.sqrt = ctx._wrap_libmp_function(libmp.mpf_sqrt, libmp.mpc_sqrt)
-        ctx.cbrt = ctx._wrap_libmp_function(libmp.libelefun.mpf_cbrt, libmp.libmpc.mpc_cbrt)
-        ctx.ln = ctx._wrap_libmp_function(libmp.libelefun.mpf_ln, libmp.libmpc.mpc_ln)
-        ctx.atan = ctx._wrap_libmp_function(libmp.mpf_atan, libmp.libmpc.mpc_atan)
+        ctx.cbrt = ctx._wrap_libmp_function(libmp.mpf_cbrt, libmp.mpc_cbrt)
+        ctx.ln = ctx._wrap_libmp_function(libmp.mpf_log, libmp.mpc_log)
+        ctx.atan = ctx._wrap_libmp_function(libmp.mpf_atan, libmp.mpc_atan)
         ctx.exp = ctx._wrap_libmp_function(libmp.mpf_exp, libmp.mpc_exp)
-        ctx.expj = ctx._wrap_libmp_function(libmp.libmpc.mpf_expj, libmp.libmpc.mpc_expj)
-        ctx.expjpi = ctx._wrap_libmp_function(libmp.libmpc.mpf_expjpi, libmp.libmpc.mpc_expjpi)
-        ctx.sin = ctx._wrap_libmp_function(libmp.mpf_sin, libmp.libmpc.mpc_sin)
-        ctx.cos = ctx._wrap_libmp_function(libmp.mpf_cos, libmp.libmpc.mpc_cos)
-        ctx.tan = ctx._wrap_libmp_function(libmp.mpf_tan, libmp.libmpc.mpc_tan)
-        ctx.sinh = ctx._wrap_libmp_function(libmp.libelefun.mpf_sinh, libmp.libmpc.mpc_sinh)
-        ctx.cosh = ctx._wrap_libmp_function(libmp.libelefun.mpf_cosh, libmp.libmpc.mpc_cosh)
-        ctx.tanh = ctx._wrap_libmp_function(libmp.libelefun.mpf_tanh, libmp.libmpc.mpc_tanh)
-        ctx.asin = ctx._wrap_libmp_function(libmp.libelefun.mpf_asin, libmp.libmpc.mpc_asin)
-        ctx.acos = ctx._wrap_libmp_function(libmp.libelefun.mpf_acos, libmp.libmpc.mpc_acos)
-        ctx.atan = ctx._wrap_libmp_function(libmp.mpf_atan, libmp.libmpc.mpc_atan)
-        ctx.asinh = ctx._wrap_libmp_function(libmp.libelefun.mpf_asinh, libmp.libmpc.mpc_asinh)
-        ctx.acosh = ctx._wrap_libmp_function(libmp.libelefun.mpf_acosh, libmp.libmpc.mpc_acosh)
-        ctx.atanh = ctx._wrap_libmp_function(libmp.libelefun.mpf_atanh, libmp.libmpc.mpc_atanh)
-        ctx.sinpi = ctx._wrap_libmp_function(libmp.libelefun.mpf_sin_pi, libmp.libmpc.mpc_sin_pi)
-        ctx.cospi = ctx._wrap_libmp_function(libmp.libelefun.mpf_cos_pi, libmp.libmpc.mpc_cos_pi)
-        ctx.floor = ctx._wrap_libmp_function(libmp.mpf_floor, libmp.libmpc.mpc_floor)
-        ctx.ceil = ctx._wrap_libmp_function(libmp.mpf_ceil, libmp.libmpc.mpc_ceil)
-        ctx.nint = ctx._wrap_libmp_function(libmp.libmpf.mpf_nint, libmp.libmpc.mpc_nint)
-        ctx.frac = ctx._wrap_libmp_function(libmp.libmpf.mpf_frac, libmp.libmpc.mpc_frac)
-        ctx.fib = ctx.fibonacci = ctx._wrap_libmp_function(libmp.libelefun.mpf_fibonacci, libmp.libmpc.mpc_fibonacci)
+        ctx.expj = ctx._wrap_libmp_function(libmp.mpf_expj, libmp.mpc_expj)
+        ctx.expjpi = ctx._wrap_libmp_function(libmp.mpf_expjpi, libmp.mpc_expjpi)
+        ctx.sin = ctx._wrap_libmp_function(libmp.mpf_sin, libmp.mpc_sin)
+        ctx.cos = ctx._wrap_libmp_function(libmp.mpf_cos, libmp.mpc_cos)
+        ctx.tan = ctx._wrap_libmp_function(libmp.mpf_tan, libmp.mpc_tan)
+        ctx.sinh = ctx._wrap_libmp_function(libmp.mpf_sinh, libmp.mpc_sinh)
+        ctx.cosh = ctx._wrap_libmp_function(libmp.mpf_cosh, libmp.mpc_cosh)
+        ctx.tanh = ctx._wrap_libmp_function(libmp.mpf_tanh, libmp.mpc_tanh)
+        ctx.asin = ctx._wrap_libmp_function(libmp.mpf_asin, libmp.mpc_asin)
+        ctx.acos = ctx._wrap_libmp_function(libmp.mpf_acos, libmp.mpc_acos)
+        ctx.atan = ctx._wrap_libmp_function(libmp.mpf_atan, libmp.mpc_atan)
+        ctx.asinh = ctx._wrap_libmp_function(libmp.mpf_asinh, libmp.mpc_asinh)
+        ctx.acosh = ctx._wrap_libmp_function(libmp.mpf_acosh, libmp.mpc_acosh)
+        ctx.atanh = ctx._wrap_libmp_function(libmp.mpf_atanh, libmp.mpc_atanh)
+        ctx.sinpi = ctx._wrap_libmp_function(libmp.mpf_sin_pi, libmp.mpc_sin_pi)
+        ctx.cospi = ctx._wrap_libmp_function(libmp.mpf_cos_pi, libmp.mpc_cos_pi)
+        ctx.floor = ctx._wrap_libmp_function(libmp.mpf_floor, libmp.mpc_floor)
+        ctx.ceil = ctx._wrap_libmp_function(libmp.mpf_ceil, libmp.mpc_ceil)
+        ctx.nint = ctx._wrap_libmp_function(libmp.mpf_nint, libmp.mpc_nint)
+        ctx.frac = ctx._wrap_libmp_function(libmp.mpf_frac, libmp.mpc_frac)
+        ctx.fib = ctx.fibonacci = ctx._wrap_libmp_function(libmp.mpf_fibonacci, libmp.mpc_fibonacci)
 
-        ctx.gamma = ctx._wrap_libmp_function(libmp.gammazeta.mpf_gamma, libmp.gammazeta.mpc_gamma)
-        ctx.rgamma = ctx._wrap_libmp_function(libmp.gammazeta.mpf_rgamma, libmp.gammazeta.mpc_rgamma)
-        ctx.loggamma = ctx._wrap_libmp_function(libmp.gammazeta.mpf_loggamma, libmp.gammazeta.mpc_loggamma)
-        ctx.fac = ctx.factorial = ctx._wrap_libmp_function(libmp.gammazeta.mpf_factorial, libmp.gammazeta.mpc_factorial)
+        ctx.gamma = ctx._wrap_libmp_function(libmp.mpf_gamma, libmp.mpc_gamma)
+        ctx.rgamma = ctx._wrap_libmp_function(libmp.mpf_rgamma, libmp.mpc_rgamma)
+        ctx.loggamma = ctx._wrap_libmp_function(libmp.mpf_loggamma, libmp.mpc_loggamma)
+        ctx.fac = ctx.factorial = ctx._wrap_libmp_function(libmp.mpf_factorial, libmp.mpc_factorial)
 
-        ctx.digamma = ctx._wrap_libmp_function(libmp.gammazeta.mpf_psi0, libmp.gammazeta.mpc_psi0)
-        ctx.harmonic = ctx._wrap_libmp_function(libmp.gammazeta.mpf_harmonic, libmp.gammazeta.mpc_harmonic)
-        ctx.ei = ctx._wrap_libmp_function(libmp.libhyper.mpf_ei, libmp.libhyper.mpc_ei)
-        ctx.e1 = ctx._wrap_libmp_function(libmp.libhyper.mpf_e1, libmp.libhyper.mpc_e1)
-        ctx._ci = ctx._wrap_libmp_function(libmp.libhyper.mpf_ci, libmp.libhyper.mpc_ci)
-        ctx._si = ctx._wrap_libmp_function(libmp.libhyper.mpf_si, libmp.libhyper.mpc_si)
-        ctx.ellipk = ctx._wrap_libmp_function(libmp.libhyper.mpf_ellipk, libmp.libhyper.mpc_ellipk)
-        ctx._ellipe = ctx._wrap_libmp_function(libmp.libhyper.mpf_ellipe, libmp.libhyper.mpc_ellipe)
-        ctx.agm1 = ctx._wrap_libmp_function(libmp.libhyper.mpf_agm1, libmp.libhyper.mpc_agm1)
-        ctx._erf = ctx._wrap_libmp_function(libmp.libhyper.mpf_erf, None)
-        ctx._erfc = ctx._wrap_libmp_function(libmp.libhyper.mpf_erfc, None)
-        ctx._zeta = ctx._wrap_libmp_function(libmp.gammazeta.mpf_zeta, libmp.gammazeta.mpc_zeta)
-        ctx._altzeta = ctx._wrap_libmp_function(libmp.gammazeta.mpf_altzeta, libmp.gammazeta.mpc_altzeta)
+        ctx.digamma = ctx._wrap_libmp_function(libmp.mpf_psi0, libmp.mpc_psi0)
+        ctx.harmonic = ctx._wrap_libmp_function(libmp.mpf_harmonic, libmp.mpc_harmonic)
+        ctx.ei = ctx._wrap_libmp_function(libmp.mpf_ei, libmp.mpc_ei)
+        ctx.e1 = ctx._wrap_libmp_function(libmp.mpf_e1, libmp.mpc_e1)
+        ctx._ci = ctx._wrap_libmp_function(libmp.mpf_ci, libmp.mpc_ci)
+        ctx._si = ctx._wrap_libmp_function(libmp.mpf_si, libmp.mpc_si)
+        ctx.ellipk = ctx._wrap_libmp_function(libmp.mpf_ellipk, libmp.mpc_ellipk)
+        ctx._ellipe = ctx._wrap_libmp_function(libmp.mpf_ellipe, libmp.mpc_ellipe)
+        ctx.agm1 = ctx._wrap_libmp_function(libmp.mpf_agm1, libmp.mpc_agm1)
+        ctx._erf = ctx._wrap_libmp_function(libmp.mpf_erf, None)
+        ctx._erfc = ctx._wrap_libmp_function(libmp.mpf_erfc, None)
+        ctx._zeta = ctx._wrap_libmp_function(libmp.mpf_zeta, libmp.mpc_zeta)
+        ctx._altzeta = ctx._wrap_libmp_function(libmp.mpf_altzeta, libmp.mpc_altzeta)
 
     def to_fixed(ctx, x, prec):
         return x.to_fixed(prec)
@@ -161,7 +152,7 @@ class MPContext(BaseMPContext, StandardBaseContext):
         to `\sqrt{x^2 + y^2}`. Both `x` and `y` must be real."""
         x = ctx.convert(x)
         y = ctx.convert(y)
-        return ctx.make_mpf(libmp.libmpf.mpf_hypot(x._mpf_, y._mpf_, *ctx._prec_rounding))
+        return ctx.make_mpf(libmp.mpf_hypot(x._mpf_, y._mpf_, *ctx._prec_rounding))
 
     def _gamma_upper_int(ctx, n, z):
         n = int(ctx._re(n))
@@ -170,7 +161,7 @@ class MPContext(BaseMPContext, StandardBaseContext):
         if not hasattr(z, '_mpf_'):
             raise NotImplementedError
         prec, rounding = ctx._prec_rounding
-        real, imag = libmp.libhyper.mpf_expint(n, z._mpf_, prec, rounding, gamma=True)
+        real, imag = libmp.mpf_expint(n, z._mpf_, prec, rounding, gamma=True)
         if imag is None:
             return ctx.make_mpf(real)
         else:
@@ -183,7 +174,7 @@ class MPContext(BaseMPContext, StandardBaseContext):
         if not hasattr(z, '_mpf_'):
             raise NotImplementedError
         prec, rounding = ctx._prec_rounding
-        real, imag = libmp.libhyper.mpf_expint(n, z._mpf_, prec, rounding)
+        real, imag = libmp.mpf_expint(n, z._mpf_, prec, rounding)
         if imag is None:
             return ctx.make_mpf(real)
         else:
@@ -192,27 +183,27 @@ class MPContext(BaseMPContext, StandardBaseContext):
     def _nthroot(ctx, x, n):
         if hasattr(x, '_mpf_'):
             try:
-                return ctx.make_mpf(libmp.libelefun.mpf_nthroot(x._mpf_, n, *ctx._prec_rounding))
+                return ctx.make_mpf(libmp.mpf_nthroot(x._mpf_, n, *ctx._prec_rounding))
             except ComplexResult:
                 if ctx.trap_complex:
                     raise
                 x = (x._mpf_, libmp.fzero)
         else:
             x = x._mpc_
-        return ctx.make_mpc(libmp.libmpc.mpc_nthroot(x, n, *ctx._prec_rounding))
+        return ctx.make_mpc(libmp.mpc_nthroot(x, n, *ctx._prec_rounding))
 
     def _besselj(ctx, n, z):
         prec, rounding = ctx._prec_rounding
         if hasattr(z, '_mpf_'):
-            return ctx.make_mpf(libmp.libhyper.mpf_besseljn(n, z._mpf_, prec, rounding))
+            return ctx.make_mpf(libmp.mpf_besseljn(n, z._mpf_, prec, rounding))
         elif hasattr(z, '_mpc_'):
-            return ctx.make_mpc(libmp.libhyper.mpc_besseljn(n, z._mpc_, prec, rounding))
+            return ctx.make_mpc(libmp.mpc_besseljn(n, z._mpc_, prec, rounding))
 
     def _agm(ctx, a, b=1):
         prec, rounding = ctx._prec_rounding
         if hasattr(a, '_mpf_') and hasattr(b, '_mpf_'):
             try:
-                v = libmp.libhyper.mpf_agm(a._mpf_, b._mpf_, prec, rounding)
+                v = libmp.mpf_agm(a._mpf_, b._mpf_, prec, rounding)
                 return ctx.make_mpf(v)
             except ComplexResult:
                 pass
@@ -220,13 +211,13 @@ class MPContext(BaseMPContext, StandardBaseContext):
         else: a = a._mpc_
         if hasattr(b, '_mpf_'): b = (b._mpf_, libmp.fzero)
         else: b = b._mpc_
-        return ctx.make_mpc(libmp.libhyper.mpc_agm(a, b, prec, rounding))
+        return ctx.make_mpc(libmp.mpc_agm(a, b, prec, rounding))
 
     def bernoulli(ctx, n, plus=False):
         return ctx.make_mpf(libmp.mpf_bernoulli(int(n), *ctx._prec_rounding, plus=plus))
 
     def _zeta_int(ctx, n):
-        return ctx.make_mpf(libmp.gammazeta.mpf_zeta_int(int(n), *ctx._prec_rounding))
+        return ctx.make_mpf(libmp.mpf_zeta_int(int(n), *ctx._prec_rounding))
 
     def atan2(ctx, y, x):
         x = ctx.convert(x)
@@ -237,34 +228,32 @@ class MPContext(BaseMPContext, StandardBaseContext):
         z = ctx.convert(z)
         m = int(m)
         if ctx._is_real_type(z):
-            return ctx.make_mpf(libmp.gammazeta.mpf_psi(m, z._mpf_, *ctx._prec_rounding))
+            return ctx.make_mpf(libmp.mpf_psi(m, z._mpf_, *ctx._prec_rounding))
         else:
-            return ctx.make_mpc(libmp.gammazeta.mpc_psi(m, z._mpc_, *ctx._prec_rounding))
+            return ctx.make_mpc(libmp.mpc_psi(m, z._mpc_, *ctx._prec_rounding))
 
-    def cos_sin(ctx, x, *, prec=None, dps=None, rounding=round_nearest, exact=False):
+    def cos_sin(ctx, x, **kwargs):
         if type(x) not in ctx.types:
             x = ctx.convert(x)
-        prec, rounding = ctx._parse_prec({'prec': prec, 'dps': dps,
-                                          'rounding': rounding, 'exact': exact})
+        prec, rounding = ctx._parse_prec(kwargs)
         if hasattr(x, '_mpf_'):
-            c, s = libmp.libelefun.mpf_cos_sin(x._mpf_, prec, rounding)
+            c, s = libmp.mpf_cos_sin(x._mpf_, prec, rounding)
             return ctx.make_mpf(c), ctx.make_mpf(s)
         elif hasattr(x, '_mpc_'):
-            c, s = libmp.libmpc.mpc_cos_sin(x._mpc_, prec, rounding)
+            c, s = libmp.mpc_cos_sin(x._mpc_, prec, rounding)
             return ctx.make_mpc(c), ctx.make_mpc(s)
         else:
             return ctx.cos(x, **kwargs), ctx.sin(x, **kwargs)
 
-    def cospi_sinpi(ctx, x, prec=None, dps=None, rounding=round_nearest, exact=False):
+    def cospi_sinpi(ctx, x, **kwargs):
         if type(x) not in ctx.types:
             x = ctx.convert(x)
-        prec, rounding = ctx._parse_prec({'prec': prec, 'dps': dps,
-                                          'rounding': rounding, 'exact': exact})
+        prec, rounding = ctx._parse_prec(kwargs)
         if hasattr(x, '_mpf_'):
-            c, s = libmp.libelefun.mpf_cos_sin_pi(x._mpf_, prec, rounding)
+            c, s = libmp.mpf_cos_sin_pi(x._mpf_, prec, rounding)
             return ctx.make_mpf(c), ctx.make_mpf(s)
         elif hasattr(x, '_mpc_'):
-            c, s = libmp.libmpc.mpc_cos_sin_pi(x._mpc_, prec, rounding)
+            c, s = libmp.mpc_cos_sin_pi(x._mpc_, prec, rounding)
             return ctx.make_mpc(c), ctx.make_mpc(s)
         else:
             return ctx.cos(x, **kwargs), ctx.sin(x, **kwargs)
@@ -352,7 +341,7 @@ class MPContext(BaseMPContext, StandardBaseContext):
             return True
         if hasattr(x, '_mpf_'):
             if ctx.isfinite(x):
-                man, exp = to_man_exp(x._mpf_)
+                man, exp = to_man_exp(x._mpf_, signed=True)
                 return man < 0 and exp >= 0
             return False
         if hasattr(x, '_mpc_'):
@@ -370,10 +359,7 @@ class MPContext(BaseMPContext, StandardBaseContext):
         lines = ["Mpmath settings:",
             ("  mp.prec = %s" % ctx.prec).ljust(30) + f"[default: {sys.float_info.mant_dig}]",
             ("  mp.dps = %s" % ctx.dps).ljust(30) + f"[default: {sys.float_info.dig}]",
-            ("  mp.rounding = '%s'" % ctx.rounding).ljust(30) + f"[default: 'n']",
             ("  mp.trap_complex = %s" % ctx.trap_complex).ljust(30) + "[default: False]",
-            ("  mp.pretty_dps = '%s'" % ctx.pretty_dps).ljust(30) + "[default: 'str']",
-            ("  mp.shortest_str = %s" % ctx.shortest_str).ljust(30) + "[default: False]",
         ]
         return "\n".join(lines)
 
@@ -475,18 +461,14 @@ class MPContext(BaseMPContext, StandardBaseContext):
         cancellation, but is fooled by too severe cancellation::
 
             >>> x = 1e-10
-            >>> exp(x)-1
+            >>> exp(x)-1; expm1(x); autoprec(lambda t: exp(t)-1)(x)
             1.00000008274037e-10
-            >>> expm1(x)
             1.00000000005e-10
-            >>> autoprec(lambda t: exp(t)-1)(x)
             1.00000000005e-10
             >>> x = 1e-50
-            >>> exp(x)-1
+            >>> exp(x)-1; expm1(x); autoprec(lambda t: exp(t)-1)(x)
             0.0
-            >>> expm1(x)
             1.0e-50
-            >>> autoprec(lambda t: exp(t)-1)(x)
             0.0
 
         With *catch*, an exception or list of exceptions to intercept
@@ -544,9 +526,7 @@ class MPContext(BaseMPContext, StandardBaseContext):
             return +v2
         return f_autoprec_wrapped
 
-    def nstr(ctx, x, n=6, *, strip_zeros=True, min_fixed=None, max_fixed=None,
-             show_zero_exponent=False, base=10, binary_exp=False,
-             rnd=round_nearest):
+    def nstr(ctx, x, n=6, **kwargs):
         """
         Convert an ``mpf`` or ``mpc`` to a decimal string literal with *n*
         significant digits. The small default value for *n* is chosen to
@@ -586,11 +566,6 @@ class MPContext(BaseMPContext, StandardBaseContext):
             '0.0e+0'
 
         """
-        kwargs = {'strip_zeros': strip_zeros, 'min_fixed': min_fixed,
-                  'max_fixed': max_fixed, 'show_zero_exponent': show_zero_exponent,
-                  'base': base, 'binary_exp': binary_exp,
-                  'rnd': rnd}
-
         if isinstance(x, list):
             return "[%s]" % (", ".join(ctx.nstr(c, n, **kwargs) for c in x))
         if isinstance(x, tuple):
@@ -643,13 +618,13 @@ class MPContext(BaseMPContext, StandardBaseContext):
             prec, rounding = ctx._prec_rounding
             if 'rounding' in kwargs:
                 rounding = ctx._MPFR_rounding_map[kwargs['rounding']]
-            if kwargs.get('prec') is not None:
+            if 'prec' in kwargs:
                 prec = kwargs['prec']
                 if prec == ctx.inf:
                     return 0, 'f'
                 else:
                     prec = int(prec)
-            elif kwargs.get('dps') is not None:
+            elif 'dps' in kwargs:
                 dps = kwargs['dps']
                 if dps == ctx.inf:
                     return 0, 'f'
@@ -695,7 +670,7 @@ maxterms, or set zeroprec."""
                     t /= (k+1)
                 return t
         if key not in ctx.hyp_summators:
-            ctx.hyp_summators[key] = libmp.libhyper.make_hyp_summator(key)[1]
+            ctx.hyp_summators[key] = libmp.make_hyp_summator(key)[1]
         summator = ctx.hyp_summators[key]
         prec = ctx.prec
         maxprec = kwargs.get('maxprec', ctx._default_hyper_maxprec(prec))
@@ -792,23 +767,10 @@ maxterms, or set zeroprec."""
 
         """
         x = ctx.convert(x)
-        y, n = libmp.libmpf.mpf_frexp(x._mpf_)
+        y, n = libmp.mpf_frexp(x._mpf_)
         return ctx.make_mpf(y), n
 
-    def ulp(ctx, x):
-        """
-        Return the value of the least significant bit of the `x`.
-
-            >>> from mpmath import ulp
-            >>> ulp(1)
-            mpf('2.2204460492503131e-16')
-
-        """
-        x = ctx.convert(x)
-        *_, e, bc = x._mpf_
-        return ctx.make_mpf((0, MPZ_ONE, e + bc - ctx.prec, 1))
-
-    def fneg(ctx, x, prec=None, dps=None, rounding=round_nearest, exact=False):
+    def fneg(ctx, x, **kwargs):
         """
         Negates the number *x*, giving a floating-point result, optionally
         using a custom precision and rounding mode.
@@ -853,8 +815,7 @@ maxterms, or set zeroprec."""
             -200000000000000000000001
 
         """
-        prec, rounding = ctx._parse_prec({'prec': prec, 'dps': dps,
-                                          'rounding': rounding, 'exact': exact})
+        prec, rounding = ctx._parse_prec(kwargs)
         x = ctx.convert(x)
         if hasattr(x, '_mpf_'):
             return ctx.make_mpf(mpf_neg(x._mpf_, prec, rounding))
@@ -862,7 +823,7 @@ maxterms, or set zeroprec."""
             return ctx.make_mpc(mpc_neg(x._mpc_, prec, rounding))
         raise ValueError("Arguments need to be mpf or mpc compatible numbers")
 
-    def fadd(ctx, x, y, prec=None, dps=None, rounding=round_nearest, exact=False):
+    def fadd(ctx, x, y, **kwargs):
         """
         Adds the numbers *x* and *y*, giving a floating-point result,
         optionally using a custom precision and rounding mode.
@@ -877,7 +838,7 @@ maxterms, or set zeroprec."""
         specifies the direction of rounding.  Valid options are:
 
             * ``'f'`` (alias ``'D'``) for floor, towards minus infinity
-            * ``'c'`` (alias ``'U'``) for ceiling, towards plus infinity
+            * ``'c'`` (alias ``'U'``) )for ceiling, towards plus infinity
             * ``'d'`` (alias ``'Z'``) for down, towards zero
             * ``'u'`` (alias ``'Y'``) for up, away from zero
             * ``'n'`` (alias ``'N'``) for rounding to nearest (default)
@@ -921,8 +882,7 @@ maxterms, or set zeroprec."""
             OverflowError: the exact result does not fit in memory
 
         """
-        prec, rounding = ctx._parse_prec({'prec': prec, 'dps': dps,
-                                          'rounding': rounding, 'exact': exact})
+        prec, rounding = ctx._parse_prec(kwargs)
         x = ctx.convert(x)
         y = ctx.convert(y)
         try:
@@ -940,7 +900,7 @@ maxterms, or set zeroprec."""
             raise OverflowError(ctx._exact_overflow_msg)
         raise ValueError("Arguments need to be mpf or mpc compatible numbers")
 
-    def fsub(ctx, x, y, prec=None, dps=None, rounding=round_nearest, exact=False):
+    def fsub(ctx, x, y, **kwargs):
         """
         Subtracts the numbers *x* and *y*, giving a floating-point result,
         optionally using a custom precision and rounding mode.
@@ -987,8 +947,7 @@ maxterms, or set zeroprec."""
             OverflowError: the exact result does not fit in memory
 
         """
-        prec, rounding = ctx._parse_prec({'prec': prec, 'dps': dps,
-                                          'rounding': rounding, 'exact': exact})
+        prec, rounding = ctx._parse_prec(kwargs)
         x = ctx.convert(x)
         y = ctx.convert(y)
         try:
@@ -1006,7 +965,7 @@ maxterms, or set zeroprec."""
             raise OverflowError(ctx._exact_overflow_msg)
         raise ValueError("Arguments need to be mpf or mpc compatible numbers")
 
-    def fmul(ctx, x, y, prec=None, dps=None, rounding=round_nearest, exact=False):
+    def fmul(ctx, x, y, **kwargs):
         """
         Multiplies the numbers *x* and *y*, giving a floating-point result,
         optionally using a custom precision and rounding mode.
@@ -1056,9 +1015,7 @@ maxterms, or set zeroprec."""
             OverflowError: the exact result does not fit in memory
 
         """
-        prec, rounding = ctx._parse_prec({'prec': prec, 'dps': dps,
-                                          'rounding': rounding, 'exact': exact})
-
+        prec, rounding = ctx._parse_prec(kwargs)
         x = ctx.convert(x)
         y = ctx.convert(y)
         try:
@@ -1076,7 +1033,7 @@ maxterms, or set zeroprec."""
             raise OverflowError(ctx._exact_overflow_msg)
         raise ValueError("Arguments need to be mpf or mpc compatible numbers")
 
-    def fdiv(ctx, x, y, prec=None, dps=None, rounding=round_nearest, exact=False):
+    def fdiv(ctx, x, y, **kwargs):
         """
         Divides the numbers *x* and *y*, giving a floating-point result,
         optionally using a custom precision and rounding mode.
@@ -1124,8 +1081,7 @@ maxterms, or set zeroprec."""
             ValueError: division is not an exact operation
 
         """
-        prec, rounding = ctx._parse_prec({'prec': prec, 'dps': dps,
-                                          'rounding': rounding, 'exact': exact})
+        prec, rounding = ctx._parse_prec(kwargs)
         if not prec:
             raise ValueError("division is not an exact operation")
         x = ctx.convert(x)
@@ -1150,34 +1106,28 @@ maxterms, or set zeroprec."""
 
             >>> from mpmath import nint_distance, mpf, mpc
             >>> n, d = nint_distance(5)
-            >>> print(n)
+            >>> print(n); print(d)
             5
-            >>> print(d)
             -inf
             >>> n, d = nint_distance(mpf(5))
-            >>> print(n)
+            >>> print(n); print(d)
             5
-            >>> print(d)
             -inf
             >>> n, d = nint_distance(mpf(5.00000001))
-            >>> print(n)
+            >>> print(n); print(d)
             5
-            >>> print(d)
             -26
             >>> n, d = nint_distance(mpf(4.99999999))
-            >>> print(n)
+            >>> print(n); print(d)
             5
-            >>> print(d)
             -26
             >>> n, d = nint_distance(mpc(5,10))
-            >>> print(n)
+            >>> print(n); print(d)
             5
-            >>> print(d)
             4
             >>> n, d = nint_distance(mpc(5,0.000001))
-            >>> print(n)
+            >>> print(n); print(d)
             5
-            >>> print(d)
             -19
 
         """
@@ -1199,7 +1149,7 @@ maxterms, or set zeroprec."""
             im_dist = ctx.ninf
         elif hasattr(x, "_mpc_"):
             re, im = x._mpc_
-            iman, iexp = to_man_exp(im)
+            iman, iexp = to_man_exp(im, signed=True)
             if iman:
                 im_dist = iexp + iman.bit_length()
             else:
@@ -1210,7 +1160,7 @@ maxterms, or set zeroprec."""
                 return ctx.nint_distance(x)
             else:
                 raise TypeError("requires an mpf/mpc")
-        man, exp = to_man_exp(re)
+        man, exp = to_man_exp(re, signed=True)
         mag = exp+man.bit_length()
         # |x| < 0.5
         if mag < 0:
@@ -1280,14 +1230,12 @@ maxterms, or set zeroprec."""
             >>> from mpmath import fraction, mpf, mp
             >>> a = fraction(1,100)
             >>> b = mpf(1)/100
-            >>> print(a)
+            >>> print(a); print(b)
             0.01
-            >>> print(b)
             0.01
             >>> mp.dps = 30
-            >>> print(a)      # a will be accurate
+            >>> print(a); print(b)      # a will be accurate
             0.01
-            >>> print(b)
             0.0100000000000000002081668171172
         """
         return ctx.constant(lambda prec, rnd: from_rational(p, q, prec, rnd),
@@ -1317,9 +1265,9 @@ maxterms, or set zeroprec."""
         s = ctx.convert(s)
         prec, rounding = ctx._prec_rounding
         if hasattr(s, '_mpf_'):
-            v = ctx.make_mpf(libmp.gammazeta.mpf_zetasum(s._mpf_, a, b, prec))
+            v = ctx.make_mpf(libmp.mpf_zetasum(s._mpf_, a, b, prec))
         elif hasattr(s, '_mpc_'):
-            v = ctx.make_mpc(libmp.gammazeta.mpc_zetasum(s._mpc_, a, b, prec))
+            v = ctx.make_mpc(libmp.mpc_zetasum(s._mpc_, a, b, prec))
         return v
     '''
 
@@ -1328,7 +1276,7 @@ maxterms, or set zeroprec."""
             raise NotImplementedError
         a = int(a)
         prec = ctx._prec
-        xs, ys = libmp.gammazeta.mpc_zetasum(s._mpc_, a, n, derivatives, reflect, prec)
+        xs, ys = libmp.mpc_zetasum(s._mpc_, a, n, derivatives, reflect, prec)
         xs = [ctx.make_mpc(x) for x in xs]
         ys = [ctx.make_mpc(y) for y in ys]
         return xs, ys

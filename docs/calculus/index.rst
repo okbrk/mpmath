@@ -12,4 +12,3 @@ Numerical calculus
    odes
    approximation
    inverselaplace
-   fft

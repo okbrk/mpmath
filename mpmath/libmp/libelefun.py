@@ -10,8 +10,6 @@ see libmpc and libmpi.
 """
 
 import math
-import threading
-import warnings
 
 from .backend import BACKEND, MPZ, MPZ_FIVE, MPZ_ONE, MPZ_TWO, MPZ_ZERO
 from .libintmath import (giant_steps, ifib, isqrt_fast, lshift, rshift,
@@ -21,11 +19,8 @@ from .libmpf import (ComplexResult, bctable, finf, fnan, fninf, fnone, fone,
                      mpf_add, mpf_cmp, mpf_div, mpf_mul, mpf_mul_int, mpf_neg,
                      mpf_perturb, mpf_pos, mpf_pow_int, mpf_rdiv_int,
                      mpf_shift, mpf_sign, mpf_sqrt, mpf_sub, negative_rnd,
-                     normalize, reciprocal_rnd, round_ceiling, round_down,
+                     normalize, reciprocal_rnd, round_ceiling, round_fast,
                      round_up, to_fixed, to_int)
-
-
-local = threading.local()
 
 
 #-------------------------------------------------------------------------------
@@ -48,21 +43,21 @@ if BACKEND == 'python':
 else:
     COS_SIN_CACHE_PREC = 200
 COS_SIN_CACHE_STEP = 8
-cos_sin_cache = local.cos_sin_cache = {}
+cos_sin_cache = {}
 
 # Number of integer logarithms to cache (for zeta sums)
 MAX_LOG_INT_CACHE = 2000
-log_int_cache = local.log_int_cache = {}
+log_int_cache = {}
 
 LOG_TAYLOR_PREC = 2500  # Use Taylor series with caching up to this prec
 LOG_TAYLOR_SHIFT = 9    # Cache log values in steps of size 2^-N
-log_taylor_cache = local.log_taylor_cache = {}
+log_taylor_cache = {}
 # prec/size ratio of x for fastest convergence in AGM formula
 LOG_AGM_MAG_PREC_RATIO = 20
 
 ATAN_TAYLOR_PREC = 3000  # Same as for log
 ATAN_TAYLOR_SHIFT = 7   # steps of size 2^-N
-atan_taylor_cache = local.atan_taylor_cache = {}
+atan_taylor_cache = {}
 
 
 # ~= next power of two + 20
@@ -77,7 +72,6 @@ for k in range(1, LOG_TAYLOR_PREC.bit_length()+1):
 #                                                                            #
 #----------------------------------------------------------------------------#
 
-
 def constant_memo(f):
     """
     Decorator for caching computed values of mathematical
@@ -85,15 +79,16 @@ def constant_memo(f):
     function taking a single argument prec as input and
     returning a fixed-point value with the given precision.
     """
-    f._prec_val = -1, None
+    f.memo_prec = -1
+    f.memo_val = None
     def g(prec, **kwargs):
-        memo_prec, memo_val = f._prec_val
+        memo_prec = f.memo_prec
         if prec <= memo_prec:
-            return memo_val >> (memo_prec-prec)
-        memo_prec = int(prec*1.05+10)
-        memo_val = f(memo_prec, **kwargs)
-        f._prec_val = memo_prec, memo_val
-        return memo_val >> (memo_prec-prec)
+            return f.memo_val >> (memo_prec-prec)
+        newprec = int(prec*1.05+10)
+        f.memo_val = f(newprec, **kwargs)
+        f.memo_prec = newprec
+        return f.memo_val >> (newprec-prec)
     g.__name__ = f.__name__
     g.__doc__ = f.__doc__
     return g
@@ -106,7 +101,7 @@ def def_mpf_constant(fixed):
     Assumptions: the constant is positive and has magnitude ~= 1;
     the fixed-point function rounds to floor.
     """
-    def f(prec, rnd=round_down):
+    def f(prec, rnd=round_fast):
         wp = prec + 20
         v = fixed(wp)
         if rnd in (round_up, round_ceiling):
@@ -294,7 +289,7 @@ mpf_ln10   = def_mpf_constant(ln10_fixed)
 def ln_sqrt2pi_fixed(prec):
     wp = prec + 10
     # ln(sqrt(2*pi)) = ln(2*pi)/2
-    return to_fixed(mpf_ln(mpf_shift(mpf_pi(wp), 1), wp), prec-1)
+    return to_fixed(mpf_log(mpf_shift(mpf_pi(wp), 1), wp), prec-1)
 
 @constant_memo
 def sqrtpi_fixed(prec):
@@ -310,7 +305,7 @@ mpf_ln_sqrt2pi   = def_mpf_constant(ln_sqrt2pi_fixed)
 #                                                                            #
 #----------------------------------------------------------------------------#
 
-def mpf_pow(s, t, prec, rnd=round_down):
+def mpf_pow(s, t, prec, rnd=round_fast):
     """
     Compute s**t. Raises ComplexResult if s is negative and t is
     fractional.
@@ -337,7 +332,7 @@ def mpf_pow(s, t, prec, rnd=round_down):
         return fone
     # General formula: s**t = exp(t*log(s))
     # TODO: handle rnd direction of the logarithm carefully
-    c = mpf_ln(s, prec+10, rnd)
+    c = mpf_log(s, prec+10, rnd)
     return mpf_exp(mpf_mul(t, c), prec, rnd)
 
 def int_pow_fixed(y, n, prec):
@@ -416,7 +411,7 @@ def nthroot_fixed(y, n, prec, exp1):
         prevp = p
     return r
 
-def mpf_nthroot(s, n, prec, rnd=round_down):
+def mpf_nthroot(s, n, prec, rnd=round_fast):
     """nth-root of a positive number
 
     Use the Newton method when faster, otherwise use x**(1/n)
@@ -499,7 +494,7 @@ def mpf_nthroot(s, n, prec, rnd=round_down):
     else:
         return s
 
-def mpf_cbrt(s, prec, rnd=round_down):
+def mpf_cbrt(s, prec, rnd=round_fast):
     """cubic root of a positive number"""
     return mpf_nthroot(s, 3, prec, rnd)
 
@@ -521,7 +516,7 @@ def log_int_fixed(n, prec, ln2=None):
             return value >> (vprec - prec)
     wp = prec + 10
     assert wp > LOG_TAYLOR_SHIFT
-    v = to_fixed(mpf_ln(from_int(n), wp+5), wp)
+    v = to_fixed(mpf_log(from_int(n), wp+5), wp)
     if n < MAX_LOG_INT_CACHE:
         log_int_cache[n] = (v, wp)
     return v >> (wp-prec)
@@ -656,7 +651,7 @@ def log_taylor_cached(x, prec):
     s = (s0+s1) << 1
     return log_a + s
 
-def mpf_ln(x, prec, rnd=round_down):
+def mpf_log(x, prec, rnd=round_fast):
     """
     Compute the natural logarithm of the mpf value x. If x is negative,
     ComplexResult is raised.
@@ -699,18 +694,9 @@ def mpf_ln(x, prec, rnd=round_down):
             return mpf_perturb(t, tsign, prec, rnd)
         else:
             wp += cancellation
-
-        # If close enough to 1, use Taylor series
+        # TODO: if close enough to 1, we could use Taylor series
         # even in the AGM precision range, since the Taylor series
-        # converges rapidly.
-        # Taylor = AGM when O~(prec) = O~(prec^2/cancellation) where cancellation
-        # is greater than or equal to precision
-        wpb = wp.bit_length()
-        if wpb <= cancellation:  # possibly include constant (big integer operations)
-            a = to_fixed(x, wp)
-            s = log_taylor(a, wp)
-            return from_man_exp(s, -wp, prec, rnd)
-
+        # converges rapidly
     #------------------------------------------------------------------
     # Another special case:
     # n*log(2) is a good enough approximation
@@ -737,21 +723,6 @@ def mpf_ln(x, prec, rnd=round_down):
         m -= n*ln2_fixed(wp)
     return from_man_exp(m, -wp, prec, rnd)
 
-mpf_log = mpf_ln  # deprecated alias
-
-def mpf_log1p(x, prec, rnd=round_down):
-    """
-    Computes log(1+x) accurately.
-    """
-    wp = prec + 20
-    wp2 = wp*2
-    _, man, exp, bc = x
-    if exp + bc < -wp and (man or exp):
-        # x - x**2/2
-        x2 = mpf_sub(fone, mpf_shift(x, -1), wp2, rnd)
-        return mpf_mul(x, x2, wp, rnd)
-    return mpf_ln(mpf_add(fone, x, wp2), wp, rnd)
-
 def mpf_log_hypot(a, b, prec, rnd):
     """
     Computes log(sqrt(a^2+b^2)) accurately.
@@ -765,13 +736,14 @@ def mpf_log_hypot(a, b, prec, rnd):
         if not b[1]:
             if a == b == fzero:
                 return fninf
-            if a in (finf, fninf) or b in (finf, fninf):
-                return finf  # at least one term is (+/- inf)^2
-            return fnan
+            if fnan in (a, b):
+                return fnan
+            # at least one term is (+/- inf)^2
+            return finf
         # only a is inf/nan/0
         if a == fzero:
             # log(sqrt(0+b^2)) = log(|b|)
-            return mpf_ln(mpf_abs(b), prec, rnd)
+            return mpf_log(mpf_abs(b), prec, rnd)
         if a == fnan:
             return fnan
         return finf
@@ -788,7 +760,7 @@ def mpf_log_hypot(a, b, prec, rnd):
     # and the other is tiny...)
     if cancelled == fzero or mag_cancelled < -extra//2:
         h2 = mpf_add(a2, b2, prec+extra-min(a2[2],b2[2]))
-    return mpf_shift(mpf_ln(h2, prec, rnd), -1)
+    return mpf_shift(mpf_log(h2, prec, rnd), -1)
 
 
 #----------------------------------------------------------------------
@@ -853,7 +825,7 @@ def atan_inf(sign, prec, rnd):
         return mpf_shift(mpf_pi(prec, rnd), -1)
     return mpf_neg(mpf_shift(mpf_pi(prec, negative_rnd[rnd]), -1))
 
-def mpf_atan(x, prec, rnd=round_down):
+def mpf_atan(x, prec, rnd=round_fast):
     sign, man, exp, bc = x
     if not man:
         if x == fzero: return fzero
@@ -888,7 +860,7 @@ def mpf_atan(x, prec, rnd=round_down):
     return from_man_exp(a, -wp, prec, rnd)
 
 # TODO: cleanup the special cases
-def mpf_atan2(y, x, prec, rnd=round_down):
+def mpf_atan2(y, x, prec, rnd=round_fast):
     xsign, xman, xexp, xbc = x
     ysign, yman, yexp, ybc = y
     if not yman:
@@ -896,7 +868,7 @@ def mpf_atan2(y, x, prec, rnd=round_down):
             if mpf_sign(x) >= 0:
                 return fzero
             return mpf_pi(prec, rnd)
-        if y in (finf, fninf) and x != fnan:
+        if y in (finf, fninf):
             if x == finf:
                 if y == finf:
                     return mpf_shift(mpf_pi(prec, rnd), -2)
@@ -933,7 +905,7 @@ def mpf_atan2(y, x, prec, rnd=round_down):
     else:
         return mpf_pos(tquo, prec, rnd)
 
-def mpf_asin(x, prec, rnd=round_down):
+def mpf_asin(x, prec, rnd=round_fast):
     sign, man, exp, bc = x
     if bc+exp > 0 and x not in (fone, fnone):
         raise ComplexResult("asin(x) is real only for -1 <= x <= 1")
@@ -944,7 +916,7 @@ def mpf_asin(x, prec, rnd=round_down):
     c = mpf_div(x, b, wp)
     return mpf_shift(mpf_atan(c, prec, rnd), 1)
 
-def mpf_acos(x, prec, rnd=round_down):
+def mpf_acos(x, prec, rnd=round_fast):
     # acos(x) = 2*atan(sqrt(1-x**2)/(1+x))
     sign, man, exp, bc = x
     if bc + exp > 0:
@@ -958,7 +930,7 @@ def mpf_acos(x, prec, rnd=round_down):
     c = mpf_div(b, mpf_add(fone, x, wp), wp)
     return mpf_shift(mpf_atan(c, prec, rnd), 1)
 
-def mpf_asinh(x, prec, rnd=round_down):
+def mpf_asinh(x, prec, rnd=round_fast):
     wp = prec + 20
     sign, man, exp, bc = x
     mag = exp+bc
@@ -971,19 +943,19 @@ def mpf_asinh(x, prec, rnd=round_down):
     q = mpf_sqrt(mpf_add(mpf_mul(x, x), fone, wp), wp)
     q = mpf_add(mpf_abs(x), q, wp)
     if sign:
-        return mpf_neg(mpf_ln(q, prec, negative_rnd[rnd]))
+        return mpf_neg(mpf_log(q, prec, negative_rnd[rnd]))
     else:
-        return mpf_ln(q, prec, rnd)
+        return mpf_log(q, prec, rnd)
 
-def mpf_acosh(x, prec, rnd=round_down):
+def mpf_acosh(x, prec, rnd=round_fast):
     # acosh(x) = log(x+sqrt(x**2-1))
     wp = prec + 15
     if mpf_cmp(x, fone) == -1:
         raise ComplexResult("acosh(x) is real only for x >= 1")
     q = mpf_sqrt(mpf_add(mpf_mul(x,x), fnone, wp), wp)
-    return mpf_ln(mpf_add(x, q, wp), prec, rnd)
+    return mpf_log(mpf_add(x, q, wp), prec, rnd)
 
-def mpf_atanh(x, prec, rnd=round_down):
+def mpf_atanh(x, prec, rnd=round_fast):
     # atanh(x) = log((1+x)/(1-x))/2
     sign, man, exp, bc = x
     if (not man) and exp:
@@ -1002,9 +974,9 @@ def mpf_atanh(x, prec, rnd=round_down):
         wp += (-mag)
     a = mpf_add(x, fone, wp)
     b = mpf_sub(fone, x, wp)
-    return mpf_shift(mpf_ln(mpf_div(a, b, wp), prec, rnd), -1)
+    return mpf_shift(mpf_log(mpf_div(a, b, wp), prec, rnd), -1)
 
-def mpf_fibonacci(x, prec, rnd=round_down):
+def mpf_fibonacci(x, prec, rnd=round_fast):
     sign, man, exp, bc = x
     if not man:
         if x == fninf:
@@ -1172,7 +1144,7 @@ def cos_sin_basecase(x, prec):
         a //= k; sin += a; k += 1; a = -((a*x) >> prec)
     return ((cos*cos_t-sin*sin_t) >> prec), ((sin*cos_t+cos*sin_t) >> prec)
 
-def mpf_exp(x, prec, rnd=round_down):
+def mpf_exp(x, prec, rnd=round_fast):
     sign, man, exp, bc = x
     if man:
         mag = bc + exp
@@ -1217,7 +1189,7 @@ def mpf_exp(x, prec, rnd=round_down):
     return x
 
 
-def mpf_cosh_sinh(x, prec, rnd=round_down, tanh=0):
+def mpf_cosh_sinh(x, prec, rnd=round_fast, tanh=0):
     """Simultaneously compute (cosh(x), sinh(x)) for real x"""
     sign, man, exp, bc = x
     if (not man) and exp:
@@ -1320,7 +1292,7 @@ def mod_pi2(man, exp, mag, wp):
     return t, n, wp
 
 
-def mpf_cos_sin(x, prec, rnd=round_down, which=0, pi=False):
+def mpf_cos_sin(x, prec, rnd=round_fast, which=0, pi=False):
     """
     which:
     0 -- return cos(x), sin(x)
@@ -1399,15 +1371,15 @@ def mpf_cos_sin(x, prec, rnd=round_down, which=0, pi=False):
     if which == 3:
         return from_rational(s, c, prec, rnd)
 
-def mpf_cos(x, prec, rnd=round_down): return mpf_cos_sin(x, prec, rnd, 1)
-def mpf_sin(x, prec, rnd=round_down): return mpf_cos_sin(x, prec, rnd, 2)
-def mpf_tan(x, prec, rnd=round_down): return mpf_cos_sin(x, prec, rnd, 3)
-def mpf_cos_sin_pi(x, prec, rnd=round_down): return mpf_cos_sin(x, prec, rnd, 0, 1)
-def mpf_cos_pi(x, prec, rnd=round_down): return mpf_cos_sin(x, prec, rnd, 1, 1)
-def mpf_sin_pi(x, prec, rnd=round_down): return mpf_cos_sin(x, prec, rnd, 2, 1)
-def mpf_cosh(x, prec, rnd=round_down): return mpf_cosh_sinh(x, prec, rnd)[0]
-def mpf_sinh(x, prec, rnd=round_down): return mpf_cosh_sinh(x, prec, rnd)[1]
-def mpf_tanh(x, prec, rnd=round_down): return mpf_cosh_sinh(x, prec, rnd, tanh=1)
+def mpf_cos(x, prec, rnd=round_fast): return mpf_cos_sin(x, prec, rnd, 1)
+def mpf_sin(x, prec, rnd=round_fast): return mpf_cos_sin(x, prec, rnd, 2)
+def mpf_tan(x, prec, rnd=round_fast): return mpf_cos_sin(x, prec, rnd, 3)
+def mpf_cos_sin_pi(x, prec, rnd=round_fast): return mpf_cos_sin(x, prec, rnd, 0, 1)
+def mpf_cos_pi(x, prec, rnd=round_fast): return mpf_cos_sin(x, prec, rnd, 1, 1)
+def mpf_sin_pi(x, prec, rnd=round_fast): return mpf_cos_sin(x, prec, rnd, 2, 1)
+def mpf_cosh(x, prec, rnd=round_fast): return mpf_cosh_sinh(x, prec, rnd)[0]
+def mpf_sinh(x, prec, rnd=round_fast): return mpf_cosh_sinh(x, prec, rnd)[1]
+def mpf_tanh(x, prec, rnd=round_fast): return mpf_cosh_sinh(x, prec, rnd, tanh=1)
 
 
 # Low-overhead fixed-point versions

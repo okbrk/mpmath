@@ -81,8 +81,8 @@ def grampoint(ctx, n):
 
 
 @defun_wrapped
-def siegelz(ctx, t, *, derivative=0):
-    d = int(derivative)
+def siegelz(ctx, t, **kwargs):
+    d = int(kwargs.get("derivative", 0))
     t = ctx.convert(t)
     t1 = ctx._re(t)
     t2 = ctx._im(t)
@@ -403,7 +403,7 @@ def polylog_continuation(ctx, n, z):
     if n < 0:
         return z*0
     if ctx._is_real_type(z) and ctx.isinf(z) and n > 0:
-        return ctx.ninf if z < 0 else ctx.mpc(ctx.ninf, ctx.nan)
+        return ctx.ninf
     twopij = 2j * ctx.pi
     a = -twopij**n/ctx.fac(n) * ctx.bernpoly(n, ctx.ln(z)/twopij)
     if ctx._is_real_type(z) and z < 0:
@@ -493,10 +493,6 @@ def polylog(ctx, s, z):
         return polylog_series(ctx, s, z)
     if abs(z) >= 1.4 and ctx.isint(s):
         return (-1)**(s+1)*polylog_series(ctx, s, 1/z) + polylog_continuation(ctx, int(ctx.re(s)), z)
-    if ctx.isnan(z):
-        if ctx._is_real_type(z) and ctx.isnpint(s):
-            return ctx.nan
-        return ctx.mpc(ctx.nan, ctx.nan)
     if ctx.isint(s):
         return polylog_unitcircle(ctx, int(ctx.re(s)), z)
     return polylog_general(ctx, s, z)
@@ -528,9 +524,9 @@ def clcos(ctx, s, z, pi=False):
     return 0.5*(ctx.polylog(s,a) + ctx.polylog(s,b))
 
 @defun
-def altzeta(ctx, s, *, prec=None, dps=None, rounding=None):
+def altzeta(ctx, s, **kwargs):
     try:
-        return ctx._altzeta(s, prec=prec, dps=dps, rounding=rounding)
+        return ctx._altzeta(s, **kwargs)
     except NotImplementedError:
         return ctx._altzeta_generic(s)
 
@@ -541,19 +537,17 @@ def _altzeta_generic(ctx, s):
     return -ctx.powm1(2, 1-s) * ctx.zeta(s)
 
 @defun
-def zeta(ctx, s, a=1, derivative=0, method=None, *, prec=None,
-         dps=None, rounding=None, verbose=False, maxprec=None):
+def zeta(ctx, s, a=1, derivative=0, method=None, **kwargs):
     d = int(derivative)
     if a == 1 and not (d or method):
         try:
-            return ctx._zeta(s, prec=prec, dps=dps, rounding=rounding)
+            return ctx._zeta(s, **kwargs)
         except NotImplementedError:
             pass
     s = ctx.convert(s)
-    if prec is None:
-        prec = ctx.prec
-    if maxprec is None:
-        maxprec = 100*prec
+    prec = ctx.prec
+    method = kwargs.get('method')
+    verbose = kwargs.get('verbose')
     if (not s) and (not derivative):
         return ctx.mpf(0.5) - ctx._convert_param(a)[0]
     if a == 1 and method != 'euler-maclaurin':
@@ -573,7 +567,7 @@ def zeta(ctx, s, a=1, derivative=0, method=None, *, prec=None,
             try:
                 if verbose:
                     print("zeta: Attempting to use the Riemann-Siegel algorithm")
-                return ctx.rs_zeta(s, derivative)
+                return ctx.rs_zeta(s, derivative, **kwargs)
             except NotImplementedError:
                 if verbose:
                     print("zeta: Could not use the Riemann-Siegel algorithm")
@@ -592,11 +586,12 @@ def zeta(ctx, s, a=1, derivative=0, method=None, *, prec=None,
         return 1/s
     if ctx.re(s) > 2*ctx.prec and a == 1 and not derivative:
         return ctx.one + ctx.power(2, -s)
-    return +ctx._hurwitz(s, a, d, verbose=verbose, maxprec=maxprec)
+    return +ctx._hurwitz(s, a, d, **kwargs)
 
 @defun
-def _hurwitz(ctx, s, a=1, d=0, *, verbose=False, maxprec=None):
+def _hurwitz(ctx, s, a=1, d=0, **kwargs):
     prec = ctx.prec
+    verbose = kwargs.get('verbose')
     try:
         extraprec = 10
         ctx.prec += extraprec
@@ -629,7 +624,7 @@ def _hurwitz(ctx, s, a=1, d=0, *, verbose=False, maxprec=None):
                 return T1 + T2
             else:
                 extraprec = max(2*extraprec, min(cancellation + 5, 100*prec))
-                if extraprec > maxprec:
+                if extraprec > kwargs.get('maxprec', 100*prec):
                     raise ctx.NoConvergence("zeta: too much cancellation")
     finally:
         ctx.prec = prec
@@ -877,6 +872,10 @@ def secondzeta_prime_term(ctx, s, a, **kwargs):
     return +totsum, err, n
 
 def secondzeta_exp_term(ctx, s, a):
+    if ctx.isint(s) and ctx.re(s) <= 0:
+        m = int(round(ctx.re(s)))
+        if not m & 1:
+            return ctx.mpf('-0.25')**(-m//2)
     tol = ctx.eps
     f = lambda n: (0.25*a)**n/((n+0.5*s)*ctx.fac(n))
     totsum = ctx.zero
@@ -928,7 +927,7 @@ def secondzeta_singular_term(ctx, s, a, **kwargs):
     return +st, err
 
 @defun
-def secondzeta(ctx, s, a = 0.015, *, verbose=False, error=False):
+def secondzeta(ctx, s, a = 0.015, **kwargs):
     r"""
     Evaluates the secondary zeta function `Z(s)`, defined for
     `\mathrm{Re}(s)>1` by
@@ -1013,17 +1012,19 @@ def secondzeta(ctx, s, a = 0.015, *, verbose=False, error=False):
 
     **References**
 
-    * [Voros2003]_
-    * [Voros2009]_
+    A. Voros, Zeta functions for the Riemann zeros, Ann. Institute Fourier,
+    53, (2003) 665--699.
 
+    A. Voros, Zeta functions over Zeros of Zeta Functions, Lecture Notes
+    of the Unione Matematica Italiana, Springer, 2009.
     """
     s = ctx.convert(s)
     a = ctx.convert(a)
     tol = ctx.eps
-    if ctx.isnpint(s-1):
+    if ctx.isint(s) and ctx.re(s) <= 1:
         if abs(s-1) < tol*1000:
             return ctx.inf
-        m = round(ctx.re(s))
+        m = int(round(ctx.re(s)))
         if m & 1:
             return ctx.inf
         else:
@@ -1040,7 +1041,7 @@ def secondzeta(ctx, s, a = 0.015, *, verbose=False, error=False):
         t3 = secondzeta_exp_term(ctx, s, a)
         err = r1+r2+r4
         t = t1-t2+t3-t4
-        if verbose:
+        if kwargs.get("verbose"):
             print('main term =', t1)
             print('    computed using', gt, 'zeros of zeta')
             print('prime term =', t2)
@@ -1049,7 +1050,7 @@ def secondzeta(ctx, s, a = 0.015, *, verbose=False, error=False):
             print('singular term =', t4)
     finally:
         ctx.prec = prec
-    if error:
+    if kwargs.get("error"):
         w = max(ctx.mag(abs(t)),0)
         err = max(err*2**w, ctx.eps*1.*2**w)
         return +t, err
@@ -1086,23 +1087,18 @@ def lerchphi(ctx, z, s, a):
 
         >>> from mpmath import (mp, lerchphi, catalan, diff, zeta, pi, log,
         ...                     atanh, sqrt, j, polylog)
-        >>> mp.dps = 25
-        >>> mp.pretty = True
-        >>> lerchphi(-1,2,0.5)
+        >>> mp.dps = 25; mp.pretty = True
+        >>> lerchphi(-1,2,0.5); 4*catalan
         3.663862376708876060218414
-        >>> 4*catalan
         3.663862376708876060218414
-        >>> diff(lerchphi, (-1,-2,1), (0,1,0))
+        >>> diff(lerchphi, (-1,-2,1), (0,1,0)); 7*zeta(3)/(4*pi**2)
         0.2131391994087528954617607
-        >>> 7*zeta(3)/(4*pi**2)
         0.2131391994087528954617607
-        >>> lerchphi(-4,1,1)
+        >>> lerchphi(-4,1,1); log(5)/4
         0.4023594781085250936501898
-        >>> log(5)/4
         0.4023594781085250936501898
-        >>> lerchphi(-3+2j,1,0.5)
+        >>> lerchphi(-3+2j,1,0.5); 2*atanh(sqrt(-3+2j))/sqrt(-3+2j)
         (1.142423447120257137774002 + 0.2118232380980201350495795j)
-        >>> 2*atanh(sqrt(-3+2j))/sqrt(-3+2j)
         (1.142423447120257137774002 + 0.2118232380980201350495795j)
 
     Evaluation works for complex arguments and `|z| \ge 1`::
@@ -1160,47 +1156,13 @@ def lerchphi(ctx, z, s, a):
             v += zpow / (a+n)**s
             zpow *= z
         return zpow * ctx.lerchphi(z,s, a+m) + v
-    if abs(z) < 0.5:
-        return ctx.nsum(lambda k: z**k/(a+k)**s, [0, ctx.inf])
-    g = lambda t: t**(s - 1)*ctx.exp(-a*t)/(1 - z*ctx.exp(-t))
-    h = lambda t: (-t)**(s - 1)*ctx.exp(-a*t)/(1 - z*ctx.exp(-t))
-    L = ctx.log(z)
-    if ctx.isint(s) and s.real >= 1:
-        if abs(L.imag) < 0.25 and L.real >= 0:
-            if z.imag <= 0:
-                I = ctx.quad(g, [0, +1j, +1j + abs(L) + 1, abs(L) + 1, ctx.inf])
-            else:
-                I = ctx.quad(g, [0, -1j, -1j + abs(L) + 1, abs(L) + 1, ctx.inf])
-        else:
-            I = ctx.quad(g, [0, ctx.inf])
-        return ctx.rgamma(s)*I
-    if L.real < -0.5:
-        residue = 0
-        c = min(abs(L.real)/2, 1)
-        left = right = top = c
-    elif abs(L.imag) > 0.5:
-        residue = 0
-        c = min(abs(L.imag)/2, 1)
-        left = right = top = c
-    else:
-        residue = (-L)**s/L/z**a
-        left = max(0, -L.real) + 1
-        top = abs(L.imag) + 1
-        right = abs(L) + 1
-    isreal = not z.imag and z.real < 1 and not s.imag and not a.imag and a.real > 0
-    w = ctx.mpc(-1)**(s - 1)
-    I = 0
-    if isreal:
-        I += 2j*ctx.im(ctx.quad(g, [right, right + top*1j]) / w)
-        I += 2j*ctx.im(ctx.quad(g, [right + top*1j, -left + top*1j]) / w)
-        I += 2j*ctx.im(ctx.quad(h, [-left + top*1j, -left]))
-        I += ctx.quad(g, [right, ctx.inf]) * (w - 1/w)
-    else:
-        I += ctx.quad(g, [right, right + top*1j])/w
-        I += ctx.quad(g, [right + top*1j, -left + top*1j])/w
-        I += ctx.quad(h, [-left + top*1j, -left - top*1j])
-        I += ctx.quad(g, [-left - top*1j, right - top*1j])*w
-        I += ctx.quad(g, [right - top*1j, right])*w
-        I += ctx.quad(g, [right, ctx.inf])*(w - 1/w)
-    I = I/(2*ctx.pi*1j) + residue
-    return -ctx.gamma(1 - s)*I
+    g = ctx.ln(z)
+    v = 1/(2*a**s) + ctx.gammainc(1-s, -a*g) * (-g)**(s-1) / z**a
+    h = s / 2
+    r = 2*ctx.pi
+    f = lambda t: ctx.sin(s*ctx.atan(t/a)-t*g) / \
+        ((a**2+t**2)**h * ctx.expm1(r*t))
+    v += 2*ctx.quad(f, [0, ctx.inf])
+    if not ctx.im(z) and not ctx.im(s) and not ctx.im(a) and ctx.re(z) < 1:
+        v = ctx.chop(v)
+    return v

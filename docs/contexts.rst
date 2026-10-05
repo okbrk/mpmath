@@ -4,13 +4,9 @@ Contexts
 High-level code in mpmath is implemented as methods on a "context object". The context implements arithmetic, type conversions and other fundamental operations. The context also holds settings such as precision, and stores cache data. A few different contexts (with a mostly compatible interface) are provided so that the high-level algorithms can be used with different implementations of the underlying arithmetic, allowing different features and speed-accuracy tradeoffs. Currently, mpmath provides the following contexts:
 
   * Arbitrary-precision arithmetic (``mp``)
+  * A faster Cython-based version of ``mp`` (used by default in Sage, and currently only available there)
   * Arbitrary-precision interval arithmetic (``iv``)
   * Double-precision arithmetic using Python's builtin ``float`` and ``complex`` types (``fp``)
-
-.. note::
-
-   Using global context is not thread-safe, create instead
-   local contexts with e.g. :class:`~mpmath.MPContext`.
 
 Most global functions in the global mpmath namespace are actually methods of the ``mp``
 context. This fact is usually transparent to the user, but sometimes shows up in the
@@ -111,18 +107,6 @@ Arbitrary-precision floating-point (``mp``)
 The ``mp`` context is what most users probably want to use most of the time, as it supports the most functions, is most well-tested, and is implemented with a high level of optimization. Nearly all examples in this documentation use ``mp`` functions.
 
 See :doc:`basics` for a description of basic usage.
-
-.. autoclass:: mpmath.MPContext
-
-Local contexts, created on demand, could be used just as the global ``mp``:
-
-    >>> from mpmath import MPContext
-    >>> ctx = MPContext()
-    >>> ctx.sin(1)
-    mpf('0.8414709848078965')
-    >>> ctx.prec = 113
-    >>> ctx.sin(1)
-    mpf('0.841470984807896506652502321630298954')
 
 Arbitrary-precision interval arithmetic (``iv``)
 ------------------------------------------------
@@ -334,7 +318,7 @@ Due to intermediate rounding and cancellation errors, results computed with ``fp
 
 Beware that the ``fp`` context has signed zero, that can be used to distinguish
 different sides of branch cuts.  For example, ``fp.mpc(-1, -0.0)`` is treated
-as though it lies *below* the branch cut for :func:`~mpmath.sqrt`::
+as though it lies *below* the branch cut for :func:`~mpmath.sqrt()`::
 
     >>> fp.sqrt(fp.mpc(-1, -0.0))
     -1j
@@ -366,5 +350,5 @@ one has no signed zeros and allows to specify result *on the branch cut*
     >>> fp.mpc(mp.sqrt(-1))
     1j
 
-Here it's continuous from the above of the :func:`~mpmath.sqrt` branch
+Here it's continuous from the above of the :func:`~mpmath.sqrt()` branch
 cut (from ``0`` along the negative real axis to the negative infinity).

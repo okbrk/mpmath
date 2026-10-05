@@ -12,12 +12,7 @@ def j1(ctx, x):
     return ctx.besselj(1, x)
 
 @defun
-def besselj(ctx, n, z, derivative=0, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def besselj(ctx, n, z, derivative=0, **kwargs):
     if type(n) is int:
         n_isint = True
     else:
@@ -84,12 +79,7 @@ def besselj(ctx, n, z, derivative=0, *, eliminate=True, eliminate_all=False,
     return v
 
 @defun
-def besseli(ctx, n, z, derivative=0, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def besseli(ctx, n, z, derivative=0, **kwargs):
     n = ctx.convert(n)
     z = ctx.convert(z)
     if n and ctx.isnpint(n):
@@ -127,12 +117,7 @@ def besseli(ctx, n, z, derivative=0, *, eliminate=True, eliminate_all=False,
     return v
 
 @defun_wrapped
-def bessely(ctx, n, z, derivative=0, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def bessely(ctx, n, z, derivative=0, **kwargs):
     if not z:
         if derivative:
             # Not implemented
@@ -168,12 +153,7 @@ def bessely(ctx, n, z, derivative=0, *, eliminate=True, eliminate_all=False,
         ctx.besselj(-n,z,derivative,**kwargs))/sin
 
 @defun_wrapped
-def besselk(ctx, n, z, derivative=0, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def besselk(ctx, n, z, derivative=0, **kwargs):
     if derivative:
         raise NotImplementedError
     if not z:
@@ -199,157 +179,15 @@ def besselk(ctx, n, z, derivative=0, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [n], **kwargs)
 
 @defun_wrapped
-def hankel1(ctx, n, x, derivative=0, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
-    def terms():
-        return [ctx.besselj(n,x,derivative,**kwargs),
-                ctx.j*ctx.bessely(n,x,derivative,**kwargs)]
-    return ctx.sum_accurately(terms)
+def hankel1(ctx,n,x,**kwargs):
+    return ctx.besselj(n,x,**kwargs) + ctx.j*ctx.bessely(n,x,**kwargs)
 
 @defun_wrapped
-def hankel2(ctx, n, x, derivative=0, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
-    def terms():
-        return [ctx.besselj(n,x,derivative,**kwargs),
-                -ctx.j*ctx.bessely(n,x,derivative,**kwargs)]
-    return ctx.sum_accurately(terms)
-
-@defun
-def spherical_jn(ctx, n, z):
-    r"""
-    Spherical Bessel function of the first kind.
-
-    This function is a solution to the spherical Bessel equation
-
-    .. math ::
-        z^2 \frac{\mathrm{d}^2 w}{\mathrm{d}z^2}
-          + 2z \frac{\mathrm{d}w}{\mathrm{d}z} + (z^2 - \nu(\nu + 1)) w = 0.
-
-    It can be defined as
-
-    .. math ::
-        j_\nu(z) = \sqrt{\frac{\pi}{2z}} J_{\nu + \frac{1}{2}}(z),
-
-    where `J_\nu(z)` is the Bessel function of the first kind.
-
-    **Examples**
-
-    >>> from mpmath import spherical_jn
-    >>> spherical_jn(0, 1)
-    mpf('0.8414709848078965')
-
-    """
-    return ctx.besselj(n + ctx.one/2, z) / ctx.sqrt(2*z/ctx.pi)
-
-@defun
-def spherical_yn(ctx, n, z):
-    r"""
-    Spherical Bessel function of the second kind.
-
-    This function is another solution to the spherical Bessel equation, and
-    linearly independent from `j_n`. It can be defined as
-
-    .. math ::
-        j_\nu(z) = \sqrt{\frac{\pi}{2z}} Y_{\nu + \frac{1}{2}}(z),
-
-    where `Y_\nu(z)` is the Bessel function of the second kind.
-
-    **Examples**
-
-    >>> from mpmath import spherical_yn
-    >>> spherical_yn(0, 1)
-    mpf('-0.54030230586813977')
-
-    """
-    return ctx.bessely(n + ctx.one/2, z) / ctx.sqrt(2*z/ctx.pi)
-
-@defun
-def spherical_in(ctx, n, z):
-    r"""
-    Modified spherical Bessel function of the first kind.
-
-    This function is a solution to the spherical Bessel equation
-    (equation 10.47.2 of [DLMF]_):
-
-    .. math ::
-        z^2 \frac{\mathrm{d}^2 w}{\mathrm{d}z^2}
-          + 2z \frac{\mathrm{d}w}{\mathrm{d}z} - (z^2 + \nu(\nu + 1)) w = 0.
-
-    It can be defined as
-
-    .. math ::
-        i_\nu(z) = \sqrt{\frac{\pi}{2z}} I_{\nu + \frac{1}{2}}(z),
-
-    where `I_\nu(z)` is the modified Bessel function of the first kind.
-
-    **References**
-
-    1. [DLMF]_ Chapter 10.47.
-
-    **Examples**
-
-    >>> from mpmath import spherical_in
-
-    >>> spherical_in(0, 1)
-    mpf('1.1752011936438014')
-    >>> spherical_in(6, 0.5 + 3j)
-    mpc(real='-0.0027505520810430402', imag='0.0033767606983784665')
-
-    """
-    return ctx.besseli(n + ctx.one/2, z) / ctx.sqrt(2*z/ctx.pi)
-
-
-@defun
-def spherical_kn(ctx, n, z):
-    r"""
-    Modified spherical Bessel function of the second kind.
-
-    This function is a solution to the spherical Bessel equation
-    (equation 10.47.2 of [DLMF]_):
-
-    .. math ::
-        z^2 \frac{\mathrm{d}^2 w}{\mathrm{d}z^2}
-          + 2z \frac{\mathrm{d}w}{\mathrm{d}z} - (z^2 + \nu(\nu + 1)) w = 0.
-
-    It can be defined as
-
-    .. math ::
-        k_\nu(z) = \sqrt{\frac{\pi}{2z}} K_{\nu + \frac{1}{2}}(z),
-
-    where `K_\nu(z)` is the modified Bessel function of the second kind.
-
-    **References**
-
-    1. [DLMF]_ Chapter 10.47.
-
-    **Examples**
-
-    >>> from mpmath import spherical_kn
-
-    >>> spherical_kn(0, 1)
-    mpf('0.57786367489546075')
-    >>> spherical_kn(6, 0.5 + 3j)
-    mpc(real='-8.6615736788078621', imag='5.5165801484422294')
-
-    """
-    return ctx.besselk(n + ctx.one/2, z) / ctx.sqrt(2*z/ctx.pi)
-
+def hankel2(ctx,n,x,**kwargs):
+    return ctx.besselj(n,x,**kwargs) - ctx.j*ctx.bessely(n,x,**kwargs)
 
 @defun_wrapped
-def whitm(ctx,k,m,z, *, eliminate=True, eliminate_all=False,
-          force_series=False, asymp_tol=None, maxprec=None,
-          maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def whitm(ctx,k,m,z,**kwargs):
     if z == 0:
         # M(k,m,z) = 0^(1/2+m)
         if ctx.re(m) > -0.5:
@@ -363,12 +201,7 @@ def whitm(ctx,k,m,z, *, eliminate=True, eliminate_all=False,
     return ctx.exp(x) * z**y * ctx.hyp1f1(y-k, 1+2*m, z, **kwargs)
 
 @defun_wrapped
-def whitw(ctx,k,m,z, *, eliminate=True, eliminate_all=False,
-          force_series=False, asymp_tol=None, maxprec=None,
-          maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def whitw(ctx,k,m,z,**kwargs):
     if z == 0:
         g = abs(ctx.re(m))
         if g < 0.5:
@@ -382,12 +215,7 @@ def whitw(ctx,k,m,z, *, eliminate=True, eliminate_all=False,
     return ctx.exp(x) * z**y * ctx.hyperu(y-k, 1+2*m, z, **kwargs)
 
 @defun
-def hyperu(ctx, a, b, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def hyperu(ctx, a, b, z, **kwargs):
     a, atype = ctx._convert_param(a)
     b, btype = ctx._convert_param(b)
     z = ctx.convert(z)
@@ -416,12 +244,7 @@ def hyperu(ctx, a, b, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [a,b], **kwargs)
 
 @defun
-def struveh(ctx, n, z, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def struveh(ctx,n,z, **kwargs):
     n = ctx.convert(n)
     z = ctx.convert(z)
     # http://functions.wolfram.com/Bessel-TypeFunctions/StruveH/26/01/02/
@@ -430,12 +253,7 @@ def struveh(ctx, n, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [n], **kwargs)
 
 @defun
-def struvel(ctx, n, z, *, eliminate=True, eliminate_all=False,
-            force_series=False, asymp_tol=None, maxprec=None,
-            maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def struvel(ctx,n,z, **kwargs):
     n = ctx.convert(n)
     z = ctx.convert(z)
     # http://functions.wolfram.com/Bessel-TypeFunctions/StruveL/26/01/02/
@@ -463,30 +281,15 @@ def _anger(ctx,which,v,z,**kwargs):
     return ctx.hypercomb(h, [v], **kwargs)
 
 @defun
-def angerj(ctx, v, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def angerj(ctx, v, z, **kwargs):
     return _anger(ctx, 0, v, z, **kwargs)
 
 @defun
-def webere(ctx, v, z, *, eliminate=True, eliminate_all=False,
-           force_series=False, asymp_tol=None, maxprec=None,
-           maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def webere(ctx, v, z, **kwargs):
     return _anger(ctx, 1, v, z, **kwargs)
 
 @defun
-def lommels1(ctx, u, v, z, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def lommels1(ctx, u, v, z, **kwargs):
     u = ctx._convert_param(u)[0]
     v = ctx._convert_param(v)[0]
     z = ctx.convert(z)
@@ -498,12 +301,7 @@ def lommels1(ctx, u, v, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [u,v], **kwargs)
 
 @defun
-def lommels2(ctx, u, v, z, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def lommels2(ctx, u, v, z, **kwargs):
     u = ctx._convert_param(u)[0]
     v = ctx._convert_param(v)[0]
     z = ctx.convert(z)
@@ -532,12 +330,7 @@ def lommels2(ctx, u, v, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [u,v], **kwargs)
 
 @defun
-def ber(ctx, n, z, *, eliminate=True, eliminate_all=False,
-        force_series=False, asymp_tol=None, maxprec=None,
-        maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def ber(ctx, n, z, **kwargs):
     n = ctx.convert(n)
     z = ctx.convert(z)
     # http://functions.wolfram.com/Bessel-TypeFunctions/KelvinBer2/26/01/02/0001/
@@ -550,12 +343,7 @@ def ber(ctx, n, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [n], **kwargs)
 
 @defun
-def bei(ctx, n, z, *, eliminate=True, eliminate_all=False,
-        force_series=False, asymp_tol=None, maxprec=None,
-        maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def bei(ctx, n, z, **kwargs):
     n = ctx.convert(n)
     z = ctx.convert(z)
     # http://functions.wolfram.com/Bessel-TypeFunctions/KelvinBei2/26/01/02/0001/
@@ -568,12 +356,7 @@ def bei(ctx, n, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [n], **kwargs)
 
 @defun
-def ker(ctx, n, z, *, eliminate=True, eliminate_all=False,
-        force_series=False, asymp_tol=None, maxprec=None,
-        maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def ker(ctx, n, z, **kwargs):
     n = ctx.convert(n)
     z = ctx.convert(z)
     # http://functions.wolfram.com/Bessel-TypeFunctions/KelvinKer2/26/01/02/0001/
@@ -589,12 +372,7 @@ def ker(ctx, n, z, *, eliminate=True, eliminate_all=False,
     return ctx.hypercomb(h, [n], **kwargs)
 
 @defun
-def kei(ctx, n, z, *, eliminate=True, eliminate_all=False,
-        force_series=False, asymp_tol=None, maxprec=None,
-        maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def kei(ctx, n, z, **kwargs):
     n = ctx.convert(n)
     z = ctx.convert(z)
     # http://functions.wolfram.com/Bessel-TypeFunctions/KelvinKei2/26/01/02/0001/
@@ -672,12 +450,7 @@ def _airyderiv_0(ctx, z, n, ntype, which):
         raise NotImplementedError
 
 @defun
-def airyai(ctx, z, derivative=0, *, eliminate=True, eliminate_all=False,
-        force_series=False, asymp_tol=None, maxprec=None,
-        maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def airyai(ctx, z, derivative=0, **kwargs):
     z = ctx.convert(z)
     if derivative:
         n, ntype = ctx._convert_param(derivative)
@@ -769,12 +542,7 @@ def airyai(ctx, z, derivative=0, *, eliminate=True, eliminate_all=False,
         return ctx.hypercomb(h, [], **kwargs)
 
 @defun
-def airybi(ctx, z, derivative=0, *, eliminate=True, eliminate_all=False,
-        force_series=False, asymp_tol=None, maxprec=None,
-        maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def airybi(ctx, z, derivative=0, **kwargs):
     z = ctx.convert(z)
     if derivative:
         n, ntype = ctx._convert_param(derivative)
@@ -885,7 +653,7 @@ def airyaizero(ctx, k, derivative=0):
 def airybizero(ctx, k, derivative=0, complex=False):
     return _airy_zero(ctx, 1, k, derivative, complex)
 
-def _scorer(ctx, z, which, derivative=0, **kwargs):
+def _scorer(ctx, z, which, kwargs):
     z = ctx.convert(z)
     if ctx.isinf(z):
         if z == ctx.inf:
@@ -898,7 +666,7 @@ def _scorer(ctx, z, which, derivative=0, **kwargs):
         extraprec = max(0, int(1.5*ctx.mag(z)))
     else:
         extraprec = 0
-    if derivative != 0:
+    if kwargs.get('derivative'):
         raise NotImplementedError
     # Direct asymptotic expansions, to avoid
     # exponentially large cancellation
@@ -929,22 +697,12 @@ def _scorer(ctx, z, which, derivative=0, **kwargs):
     return ctx.hypercomb(h, [], **kwargs)
 
 @defun
-def scorergi(ctx, z, derivative=0, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
-    return _scorer(ctx, z, 0, derivative, **kwargs)
+def scorergi(ctx, z, **kwargs):
+    return _scorer(ctx, z, 0, kwargs)
 
 @defun
-def scorerhi(ctx, z, derivative=0, *, eliminate=True, eliminate_all=False,
-             force_series=False, asymp_tol=None, maxprec=None,
-             maxterms=None, zeroprec=None, infprec=None, verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
-    return _scorer(ctx, z, 1, derivative, **kwargs)
+def scorerhi(ctx, z, **kwargs):
+    return _scorer(ctx, z, 1, kwargs)
 
 @defun_wrapped
 def coulombc(ctx, l, eta, _cache={}):
@@ -960,13 +718,7 @@ def coulombc(ctx, l, eta, _cache={}):
     return v
 
 @defun_wrapped
-def coulombf(ctx, l, eta, z, w=1, chop=True, *, eliminate=True,
-             eliminate_all=False, force_series=False, asymp_tol=None,
-             maxprec=None, maxterms=None, zeroprec=None, infprec=None,
-             verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def coulombf(ctx, l, eta, z, w=1, chop=True, **kwargs):
     # Regular Coulomb wave function
     # Note: w can be either 1 or -1; the other may be better in some cases
     # TODO: check that chop=True chops when and only when it should
@@ -1005,13 +757,7 @@ def _coulomb_chi(ctx, l, eta, _cache={}):
     return v
 
 @defun_wrapped
-def coulombg(ctx, l, eta, z, w=1, chop=True, *, eliminate=True,
-             eliminate_all=False, force_series=False, asymp_tol=None,
-             maxprec=None, maxterms=None, zeroprec=None, infprec=None,
-             verbose=False):
-    kwargs = ctx._set_hyper_kwargs(eliminate, eliminate_all,
-                                   force_series, asymp_tol, maxprec,
-                                   maxterms, zeroprec, infprec, verbose)
+def coulombg(ctx, l, eta, z, w=1, chop=True, **kwargs):
     # Irregular Coulomb wave function
     # Note: w can be either 1 or -1; the other may be better in some cases
     # TODO: check that chop=True chops when and only when it should
@@ -1107,7 +853,7 @@ def generalized_bisection(ctx,f,a,b,n):
         N = N*2
 
 def find_in_interval(ctx, f, ab):
-    return ctx.findroot(f, ab, solver='illinois')
+    return ctx.findroot(f, ab, solver='illinois', verify=False)
 
 def bessel_zero(ctx, kind, prime, v, m, isoltol=0.01, _interval_cache={}):
     prec = ctx.prec
@@ -1191,25 +937,18 @@ def besseljzero(ctx, v, m, derivative=0):
     Initial zeros of the Bessel functions `J_0(z), J_1(z), J_2(z)`::
 
         >>> from mpmath import mp, besseljzero, mpf, gamma, nprod, inf, besselj
-        >>> mp.dps = 25
-        >>> mp.pretty = True
-        >>> besseljzero(0,1)
+        >>> mp.dps = 25; mp.pretty = True
+        >>> besseljzero(0,1); besseljzero(0,2); besseljzero(0,3)
         2.404825557695772768621632
-        >>> besseljzero(0,2)
         5.520078110286310649596604
-        >>> besseljzero(0,3)
         8.653727912911012216954199
-        >>> besseljzero(1,1)
+        >>> besseljzero(1,1); besseljzero(1,2); besseljzero(1,3)
         3.831705970207512315614436
-        >>> besseljzero(1,2)
         7.01558666981561875353705
-        >>> besseljzero(1,3)
         10.17346813506272207718571
-        >>> besseljzero(2,1)
+        >>> besseljzero(2,1); besseljzero(2,2); besseljzero(2,3)
         5.135622301840682556301402
-        >>> besseljzero(2,2)
         8.417244140399864857783614
-        >>> besseljzero(2,3)
         11.61984117214905942709415
 
     Initial zeros of `J'_0(z), J'_1(z), J'_2(z)`::
@@ -1217,38 +956,28 @@ def besseljzero(ctx, v, m, derivative=0):
         0.0
         3.831705970207512315614436
         7.01558666981561875353705
-        >>> besseljzero(1,1,1)
+        >>> besseljzero(1,1,1); besseljzero(1,2,1); besseljzero(1,3,1)
         1.84118378134065930264363
-        >>> besseljzero(1,2,1)
         5.331442773525032636884016
-        >>> besseljzero(1,3,1)
         8.536316366346285834358961
-        >>> besseljzero(2,1,1)
+        >>> besseljzero(2,1,1); besseljzero(2,2,1); besseljzero(2,3,1)
         3.054236928227140322755932
-        >>> besseljzero(2,2,1)
         6.706133194158459146634394
-        >>> besseljzero(2,3,1)
         9.969467823087595793179143
 
     Zeros with large index::
 
-        >>> besseljzero(0,100)
+        >>> besseljzero(0,100); besseljzero(0,1000); besseljzero(0,10000)
         313.3742660775278447196902
-        >>> besseljzero(0,1000)
         3140.807295225078628895545
-        >>> besseljzero(0,10000)
         31415.14114171350798533666
-        >>> besseljzero(5,100)
+        >>> besseljzero(5,100); besseljzero(5,1000); besseljzero(5,10000)
         321.1893195676003157339222
-        >>> besseljzero(5,1000)
         3148.657306813047523500494
-        >>> besseljzero(5,10000)
         31422.9947255486291798943
-        >>> besseljzero(0,100,1)
+        >>> besseljzero(0,100,1); besseljzero(0,1000,1); besseljzero(0,10000,1)
         311.8018681873704508125112
-        >>> besseljzero(0,1000,1)
         3139.236339643802482833973
-        >>> besseljzero(0,10000,1)
         31413.57032947022399485808
 
     Zeros of functions with large order::
@@ -1268,11 +997,9 @@ def besseljzero(ctx, v, m, derivative=0):
 
     Zeros of functions with fractional order::
 
-        >>> besseljzero(0.5,1)
+        >>> besseljzero(0.5,1); besseljzero(1.5,1); besseljzero(2.25,4)
         3.141592653589793238462643
-        >>> besseljzero(1.5,1)
         4.493409457909064175307881
-        >>> besseljzero(2.25,4)
         15.15657692957458622921634
 
     Both `J_{\nu}(z)` and `J'_{\nu}(z)` can be expressed as infinite
@@ -1317,67 +1044,48 @@ def besselyzero(ctx, v, m, derivative=0):
     Initial zeros of the Bessel functions `Y_0(z), Y_1(z), Y_2(z)`::
 
         >>> from mpmath import mp, besselyzero
-        >>> mp.dps = 25
-        >>> mp.pretty = True
-        >>> besselyzero(0,1)
+        >>> mp.dps = 25; mp.pretty = True
+        >>> besselyzero(0,1); besselyzero(0,2); besselyzero(0,3)
         0.8935769662791675215848871
-        >>> besselyzero(0,2)
         3.957678419314857868375677
-        >>> besselyzero(0,3)
         7.086051060301772697623625
-        >>> besselyzero(1,1)
+        >>> besselyzero(1,1); besselyzero(1,2); besselyzero(1,3)
         2.197141326031017035149034
-        >>> besselyzero(1,2)
         5.429681040794135132772005
-        >>> besselyzero(1,3)
         8.596005868331168926429606
-        >>> besselyzero(2,1)
+        >>> besselyzero(2,1); besselyzero(2,2); besselyzero(2,3)
         3.384241767149593472701426
-        >>> besselyzero(2,2)
         6.793807513268267538291167
-        >>> besselyzero(2,3)
         10.02347797936003797850539
 
     Initial zeros of `Y'_0(z), Y'_1(z), Y'_2(z)`::
 
-        >>> besselyzero(0,1,1)
+        >>> besselyzero(0,1,1); besselyzero(0,2,1); besselyzero(0,3,1)
         2.197141326031017035149034
-        >>> besselyzero(0,2,1)
         5.429681040794135132772005
-        >>> besselyzero(0,3,1)
         8.596005868331168926429606
-        >>> besselyzero(1,1,1)
+        >>> besselyzero(1,1,1); besselyzero(1,2,1); besselyzero(1,3,1)
         3.683022856585177699898967
-        >>> besselyzero(1,2,1)
         6.941499953654175655751944
-        >>> besselyzero(1,3,1)
         10.12340465543661307978775
-        >>> besselyzero(2,1,1)
+        >>> besselyzero(2,1,1); besselyzero(2,2,1); besselyzero(2,3,1)
         5.002582931446063945200176
-        >>> besselyzero(2,2,1)
         8.350724701413079526349714
-        >>> besselyzero(2,3,1)
         11.57419546521764654624265
 
     Zeros with large index::
 
-        >>> besselyzero(0,100)
+        >>> besselyzero(0,100); besselyzero(0,1000); besselyzero(0,10000)
         311.8034717601871549333419
-        >>> besselyzero(0,1000)
         3139.236498918198006794026
-        >>> besselyzero(0,10000)
         31413.57034538691205229188
-        >>> besselyzero(5,100)
+        >>> besselyzero(5,100); besselyzero(5,1000); besselyzero(5,10000)
         319.6183338562782156235062
-        >>> besselyzero(5,1000)
         3147.086508524556404473186
-        >>> besselyzero(5,10000)
         31421.42392920214673402828
-        >>> besselyzero(0,100,1)
+        >>> besselyzero(0,100,1); besselyzero(0,1000,1); besselyzero(0,10000,1)
         313.3726705426359345050449
-        >>> besselyzero(0,1000,1)
         3140.807136030340213610065
-        >>> besselyzero(0,10000,1)
         31415.14112579761578220175
 
     Zeros of functions with large order::
@@ -1397,11 +1105,9 @@ def besselyzero(ctx, v, m, derivative=0):
 
     Zeros of functions with fractional order::
 
-        >>> besselyzero(0.5,1)
+        >>> besselyzero(0.5,1); besselyzero(1.5,1); besselyzero(2.25,4)
         1.570796326794896619231322
-        >>> besselyzero(1.5,1)
         2.798386045783887136720249
-        >>> besselyzero(2.25,4)
         13.56721208770735123376018
 
     """

@@ -1,34 +1,3 @@
-from functools import lru_cache, wraps
-from inspect import signature
-
-
-def _ctx_lru_cache(ctx, f, maxsize):
-    """Cache *f* by its arguments and the context's numerical state."""
-    @lru_cache(maxsize=maxsize)
-    def cached(_ctx_state, /, *args, **kwargs):
-        # lru_cache includes the context state in its key, preventing a value
-        # computed with one numerical setting from being reused with another.
-        # The calculation reads the same state from ctx, so it need not
-        # otherwise use this argument.
-        return f(*args, **kwargs)
-
-    @wraps(f)
-    def f_cached(*args, **kwargs):
-        # Fixed-precision and interval contexts do not expose rounding or
-        # trap_complex, so use a stable placeholder for those contexts.
-        rounding = getattr(ctx, 'rounding', None)
-        trap_complex = getattr(ctx, 'trap_complex', None)
-        ctx_state = ctx.prec, rounding, trap_complex
-        return cached(ctx_state, *args, **kwargs)
-
-    # This wrapper is stored directly on a context instance, so wraps alone
-    # would expose the unbound function's leading ctx parameter.
-    f_cached.__signature__ = signature(f)
-    f_cached.cache_info = cached.cache_info
-    f_cached.cache_clear = cached.cache_clear
-    return f_cached
-
-
 class SpecialFunctions:
     """
     This class implements special functions using high-level code.
@@ -38,17 +7,17 @@ class SpecialFunctions:
     "builtins" or "low-level" functions.
     """
     defined_functions = {}
-    lru_cache_functions = {}
+
+    # The series for the Jacobi theta functions converge for |q| < 1;
+    # in the current implementation they throw a ValueError for
+    # abs(q) > THETA_Q_LIM
+    THETA_Q_LIM = 1 - 10**-7
 
     def __init__(self):
         cls = self.__class__
         for name in cls.defined_functions:
             f, wrap = cls.defined_functions[name]
             cls._wrap_specfun(name, f, wrap)
-            if name in cls.lru_cache_functions:
-                maxsize = cls.lru_cache_functions[name]
-                setattr(self, name, _ctx_lru_cache(
-                    self, getattr(self, name), maxsize))
 
         self._misc_const_cache = {}
 
@@ -87,7 +56,7 @@ class SpecialFunctions:
     def _e1(ctx, z): raise NotImplementedError
     def _ci(ctx, z): raise NotImplementedError
     def _si(ctx, z): raise NotImplementedError
-    def _altzeta(ctx, s, **kwargs): raise NotImplementedError
+    def _altzeta(ctx, s): raise NotImplementedError
 
 def defun_wrapped(f):
     SpecialFunctions.defined_functions[f.__name__] = f, True
@@ -96,13 +65,6 @@ def defun_wrapped(f):
 def defun(f):
     SpecialFunctions.defined_functions[f.__name__] = f, False
     return f
-
-def ctx_lru_cache(maxsize):
-    """Mark a context function for per-context LRU caching."""
-    def decorator(f):
-        SpecialFunctions.lru_cache_functions[f.__name__] = maxsize
-        return f
-    return decorator
 
 def defun_static(f):
     setattr(SpecialFunctions, f.__name__, f)
@@ -212,37 +174,7 @@ def log1p(ctx, x):
     cmag = ctx.mag(c)
     a, b = c.real, c.imag
     wp = ctx.prec
-    if cmag < -wp:
-        # c is "very small", and we use a series expansion,
-        # c - c**2/2. The real part of that is a+(b*b-a*a)/2,
-        # and the imag part b-a*b. Given that cmag < -prec, it
-        # can be shown that "a*b" is numerically insignifcant in
-        # the imag part, and _usually_ the "a*a/2" in the real
-        # part. What remains is cheap to compute. In the real
-        # part, though, if `a` is negative, the remaining
-        # a+b**2/2 can suffer massive cancellation - even total.
-        real = a + b*b*0.5 # usually the real part of the result
-        if (a < 0.0
-            and ctx.mag(real) <= ctx.mag(a) - LOG1P_EXTRAPREC):
-            # The guard bits were lost to cancellation. Rare. At
-            # the contrived
-            # -1.999999873062092e-40+1.999999936531045e-20j
-            # _all_ bits cancel out. Since a ~= -b*b/2 in this
-            # case, and |b| is at largest (worst case) about
-            # 2**-prec, |a| is about 2**(-2*prec), and the true
-            # result may be as small as a**2/2, which is about
-            # 2**(-4*prec), of which we want the leading prec
-            # bits. To get the leading prec bits starting at
-            # 2**(-4**prec) from addends starting at
-            # 2**-(2*prec), we need the subtraction to handle
-            # 3*prec bits (the first 2*prec of which may cancel
-            # to exactly 0).
-            a2 = a*a # only need at worst prec bits
-            b2 = ctx.fmul(b, b, prec=2*wp)
-            diff = ctx.fsub(b2, a2, prec=3*wp)
-            real = a + ctx.ldexp(diff, -1)
-        result = real if ctx._is_real_type(x) else ctx.mpc(real, b)
-    else:
+    if cmag >= -wp:
         # |c| isn't very small. We call log(1+c) instead, but
         # are careful about the precision used by the add. The
         # real part of the result is log(|c+1|). That's
@@ -277,6 +209,36 @@ def log1p(ctx, x):
         # return a rexult too large by 2), So leave wp alone.
         arg = ctx.fadd(1.0, c, prec=wp)
         result = ctx.log(arg)
+    else:
+        # Else c is "very small", and we use a series expansion,
+        # c - c**2/2. The real part of that is a+(b*b-a*a)/2,
+        # and the imag part b-a*b. Given that cmag < -prec, it
+        # can be shown that "a*b" is numerically insignifcant in
+        # the imag part, and _usually_ the "a*a/2" in the real
+        # part. What remains is cheap to compute. In the real
+        # part, though, if `a` is negative, the remaining
+        # a+b**2/2 can suffer massive cancellation - even total.
+        real = a + b*b*0.5 # usually the real part of the result
+        if (a < 0.0
+            and ctx.mag(real) <= ctx.mag(a) - LOG1P_EXTRAPREC):
+            # The guard bits were lost to cancellation. Rare. At
+            # the contrived
+            # -1.999999873062092e-40+1.999999936531045e-20j
+            # _all_ bits cancel out. Since a ~= -b*b/2 in this
+            # case, and |b| is at largest (worst case) about
+            # 2**-prec, |a| is about 2**(-2*prec), and the true
+            # result may be as small as a**2/2, which is about
+            # 2**(-4*prec), of which we want the leading prec
+            # bits. To get the leading prec bits starting at
+            # 2**(-4**prec) from addends starting at
+            # 2**-(2*prec), we need the subtraction to handle
+            # 3*prec bits (the first 2*prec of which may cancel
+            # to exactly 0).
+            a2 = a*a # only need at worst prec bits
+            b2 = ctx.fmul(b, b, prec=2*wp)
+            diff = ctx.fsub(b2, a2, prec=3*wp)
+            real = a + ctx.ldexp(diff, -1)
+        result = real if ctx._is_real_type(x) else ctx.mpc(real, b)
     return result
 
 @defun_wrapped
@@ -317,22 +279,22 @@ def _rootof1(ctx, k, n):
     return ctx.expjpi(2*ctx.mpf(k)/n)
 
 @defun
-def root(ctx, z, n, k=0):
+def root(ctx, x, n, k=0):
     n = int(n)
-    z = ctx.convert(z)
+    x = ctx.convert(x)
     if k:
         # Special case: there is an exact real root
-        if (n & 1 and 2*k == n-1) and (not ctx.im(z)) and (ctx.re(z) < 0):
-            return -ctx.root(-z, n)
+        if (n & 1 and 2*k == n-1) and (not ctx.im(x)) and (ctx.re(x) < 0):
+            return -ctx.root(-x, n)
         # Multiply by root of unity
         prec = ctx.prec
         try:
             ctx.prec += 10
-            v = ctx.root(z, n, 0) * ctx._rootof1(k, n)
+            v = ctx.root(x, n, 0) * ctx._rootof1(k, n)
         finally:
             ctx.prec = prec
         return +v
-    return ctx._nthroot(z, n)
+    return ctx._nthroot(x, n)
 
 @defun
 def unitroots(ctx, n, primitive=False):
@@ -396,14 +358,6 @@ def log(ctx, x, b=None):
 @defun
 def log10(ctx, x):
     return ctx.log(x, 10)
-
-@defun
-def log2(ctx, x):
-    return ctx.log(x, 2)
-
-@defun
-def exp2(ctx, x):
-    return ctx.power(2, x)
 
 @defun
 def fmod(ctx, x, y):
@@ -665,8 +619,7 @@ def mangoldt(ctx, n):
     **Examples**
 
         >>> from mpmath import mp, mangoldt, fsum
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> [mangoldt(n) for n in range(-2,3)]
         [0.0, 0.0, 0.0, 0.0, 0.6931471805599453094172321]
         >>> mangoldt(6)

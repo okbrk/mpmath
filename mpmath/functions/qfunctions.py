@@ -1,7 +1,7 @@
 from .functions import defun, defun_wrapped
 
 @defun
-def qp(ctx, a, q=None, n=None, *, maxterms=None):
+def qp(ctx, a, q=None, n=None, **kwargs):
     r"""
     Evaluates the q-Pochhammer symbol (or q-rising factorial)
 
@@ -27,8 +27,7 @@ def qp(ctx, a, q=None, n=None, *, maxterms=None):
 
         >>> from mpmath import (mp, qp, fprod, limit, rf, taylor, findroot,
         ...                     diffun, mpf, jtheta, pi, root)
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> qp(2,3,5)
         -725305.0
         >>> fprod(1-2*3**k for k in range(5))
@@ -98,8 +97,7 @@ def qp(ctx, a, q=None, n=None, *, maxterms=None):
             raise ValueError("q-function only defined for |q| < 1")
         elif q == 0:
             return ctx.one - a
-    if maxterms is None:
-        maxterms = 50*ctx.prec
+    maxterms = kwargs.get('maxterms', 50*ctx.prec)
     if infinite and same:
         # Euler's pentagonal theorem
         def terms():
@@ -132,7 +130,7 @@ def qp(ctx, a, q=None, n=None, *, maxterms=None):
     return ctx.mul_accurately(factors)
 
 @defun_wrapped
-def qgamma(ctx, z, q, *, maxterms=None):
+def qgamma(ctx, z, q, **kwargs):
     r"""
     Evaluates the q-gamma function
 
@@ -146,8 +144,7 @@ def qgamma(ctx, z, q, *, maxterms=None):
     Evaluation for real and complex arguments::
 
         >>> from mpmath import mp, qgamma, mpf
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> qgamma(4,0.75)
         4.046875
         >>> qgamma(6,6)
@@ -168,11 +165,11 @@ def qgamma(ctx, z, q, *, maxterms=None):
     """
     if abs(q) > 1:
         return ctx.qgamma(z,1/q)*q**((z-2)*(z-1)*0.5)
-    return ctx.qp(q, q, None, maxterms=maxterms) / \
-        ctx.qp(q**z, q, None, maxterms=maxterms) * (1-q)**(1-z)
+    return ctx.qp(q, q, None, **kwargs) / \
+        ctx.qp(q**z, q, None, **kwargs) * (1-q)**(1-z)
 
 @defun_wrapped
-def qfac(ctx, z, q, *, maxterms=None):
+def qfac(ctx, z, q, **kwargs):
     r"""
     Evaluates the q-factorial,
 
@@ -189,8 +186,7 @@ def qfac(ctx, z, q, *, maxterms=None):
     **Examples**
 
         >>> from mpmath import mp, qfac
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> qfac(0,0)
         1.0
         >>> qfac(4,3)
@@ -203,11 +199,11 @@ def qfac(ctx, z, q, *, maxterms=None):
     """
     if ctx.isint(z) and ctx._re(z) > 0:
         n = int(ctx._re(z))
-        return ctx.qp(q, q, n, maxterms=maxterms) / (1-q)**n
-    return ctx.qgamma(z+1, q, maxterms=maxterms)
+        return ctx.qp(q, q, n, **kwargs) / (1-q)**n
+    return ctx.qgamma(z+1, q, **kwargs)
 
 @defun
-def qhyper(ctx, a_s, b_s, q, z, *, maxterms=None):
+def qhyper(ctx, a_s, b_s, q, z, **kwargs):
     r"""
     Evaluates the basic hypergeometric series or hypergeometric q-series
 
@@ -230,8 +226,7 @@ def qhyper(ctx, a_s, b_s, q, z, *, maxterms=None):
     Evaluation works for real and complex arguments::
 
         >>> from mpmath import qhyper, mp, nsum, qp, inf, j
-        >>> mp.dps = 25
-        >>> mp.pretty = True
+        >>> mp.dps = 25; mp.pretty = True
         >>> qhyper([0.5], [2.25], 0.25, 4)
         -0.1975849091263356009534385
         >>> qhyper([0.5], [2.25], 0.25-0.25j, 4)
@@ -259,8 +254,7 @@ def qhyper(ctx, a_s, b_s, q, z, *, maxterms=None):
     r = len(a_s)
     s = len(b_s)
     d = 1+s-r
-    if maxterms is None:
-        maxterms = 50*ctx.prec
+    maxterms = kwargs.get('maxterms', 50*ctx.prec)
     def terms():
         t = ctx.one
         yield t

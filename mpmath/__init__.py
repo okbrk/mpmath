@@ -1,4 +1,7 @@
-from ._version import __version__
+from importlib.metadata import version
+
+__version__ = version(__name__)
+del version
 
 import functools
 import sys
@@ -9,6 +12,10 @@ from .usertools import monitor, timing
 from .ctx_fp import FPContext
 from .ctx_mp import MPContext
 from .ctx_iv import MPIntervalContext
+
+# deprecated modules
+from . import rational
+from . import math2
 
 fp = FPContext()
 mp = MPContext()
@@ -43,20 +50,10 @@ mfrom = mp.mfrom
 kfrom = mp.kfrom
 taufrom = mp.taufrom
 qbarfrom = mp.qbarfrom
-g2g3from = mp.g2g3from
-omega1omega2from = mp.omega1omega2from
 ellipfun = mp.ellipfun
 jtheta = mp.jtheta
 kleinj = mp.kleinj
-kleinjinv = mp.kleinjinv
 eta = mp.eta
-
-# Weierstrass elliptic functions
-weierp = mp.weierp
-weierpprime = mp.weierpprime
-weiersigma = mp.weiersigma
-weierzeta = mp.weierzeta
-weierpinv = mp.weierpinv
 
 qp = mp.qp
 qhyper = mp.qhyper
@@ -164,12 +161,10 @@ lu = mp.lu
 qr = mp.qr
 unitvector = mp.unitvector
 inverse = mp.inverse
-pinv = mp.pinv
 residual = mp.residual
 qr_solve = mp.qr_solve
 cholesky = mp.cholesky
 cholesky_solve = mp.cholesky_solve
-lll_gram = mp.lll_gram
 det = mp.det
 cond = mp.cond
 hessenberg = mp.hessenberg
@@ -208,8 +203,6 @@ eps = mp.eps
 pi = mp.pi
 ln2 = mp.ln2
 ln10 = mp.ln10
-exp2 = mp.exp2
-log2 = mp.log2
 phi = mp.phi
 e = mp.e
 euler = mp.euler
@@ -223,7 +216,6 @@ mertens = mp.mertens
 
 ldexp = mp.ldexp
 frexp = mp.frexp
-ulp = mp.ulp
 
 fsum = mp.fsum
 fdot = mp.fdot
@@ -340,7 +332,6 @@ hyp3f2 = mp.hyp3f2
 hyperu = mp.hyperu
 hypercomb = mp.hypercomb
 meijerg = mp.meijerg
-foxh = mp.foxh
 appellf1 = mp.appellf1
 appellf2 = mp.appellf2
 appellf3 = mp.appellf3
@@ -401,10 +392,6 @@ bessely = mp.bessely
 besselk = mp.besselk
 besseljzero = mp.besseljzero
 besselyzero = mp.besselyzero
-spherical_jn = mp.spherical_jn
-spherical_yn = mp.spherical_yn
-spherical_in = mp.spherical_in
-spherical_kn = mp.spherical_kn
 hankel1 = mp.hankel1
 hankel2 = mp.hankel2
 struveh = mp.struveh
@@ -453,8 +440,6 @@ trianglew = mp.trianglew
 sawtoothw = mp.sawtoothw
 unit_triangle = mp.unit_triangle
 sigmoid = mp.sigmoid
-fft = mp.fft
-invfft = mp.invfft
 
 
 # Hack to guard against setting module properties instead of 'mp', Issue #657

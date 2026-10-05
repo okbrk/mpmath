@@ -31,19 +31,8 @@ def gammaprod(ctx, a, b, _infsign=False):
             i = poles_num.pop()
             j = poles_den.pop()
             p *= (-1)**(i+j) * ctx.gamma(1-j) / ctx.gamma(1-i)
-        try:
-            q = ctx.one
-            for x in regular_num: q *= ctx.gamma(x)
-            for x in regular_den: q /= ctx.gamma(x)
-        except OverflowError:
-            # In the fp context an individual gamma value can exceed the
-            # double range even when the quotient is representable, e.g.
-            # binomial(1100, 1). Evaluate the regular part in log space.
-            s = ctx.zero
-            for x in regular_num: s += ctx.loggamma(x)
-            for x in regular_den: s -= ctx.loggamma(x)
-            q = ctx.exp(s)
-        p *= q
+        for x in regular_num: p *= ctx.gamma(x)
+        for x in regular_den: p /= ctx.gamma(x)
     finally:
         ctx.prec = orig
     return +p
@@ -102,7 +91,7 @@ def barnesg(ctx, z):
         return ctx.nan
     if ctx.isnan(z):
         return z
-    if ctx.isnpint(z):
+    if (not ctx._im(z)) and ctx._re(z) <= 0 and ctx.isint(ctx._re(z)):
         return z*0
     # Account for size (would not be needed if computing log(G))
     if abs(z) > 5:
@@ -157,7 +146,7 @@ def hyperfac(ctx, z):
     else:
         extra = 0
     ctx.prec += extra
-    if z and ctx.isnpint(z):
+    if not ctx._im(z) and ctx._re(z) < 0 and ctx.isint(ctx._re(z)):
         n = int(ctx.re(z))
         h = ctx.hyperfac(-n-1)
         if ((n+1)//2) & 1:

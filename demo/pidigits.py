@@ -5,13 +5,11 @@ Calculate digits of pi. This module can be run interactively with
 
 """
 
-import math
 import sys
+import math
 from time import perf_counter
 
-from mpmath.libmp.libelefun import pi_fixed
-from mpmath.libmp.libintmath import bin_to_radix, numeral
-
+from mpmath.libmp import bin_to_radix, numeral, pi_fixed
 
 def display_fraction(digits, skip=0, colwidth=10, columns=5):
     perline = colwidth * columns
